@@ -1,11 +1,9 @@
-from txt_manipulation import clean_text, split_text_by_sections
 
 # Chargement et nettoyage du glossaire GIEC
 import csv
 import json
 import os
 
-import extract_text
 import pandas as pd
 from llama_index.core import Settings
 from pdfminer.high_level import extract_text
@@ -44,15 +42,6 @@ def save_database(sections, output_path):
         json.dump(sections, f, ensure_ascii=False, indent=4)
     print(f"Sections saved to {output_path}")
 
-
-# Main processing pipeline
-def process_pdf_to_index(chemin_rapport_pdf, chemin_output_json):
-    # Process PDF
-    raw_text = extract_text_from_pdf(chemin_rapport_pdf)
-    cleaned_text = clean_text(raw_text)
-    sections = split_text_by_sections(cleaned_text)
-    # Save the sections to output
-    save_database(sections, chemin_output_json)
 
 
 # Fonction pour charger les embeddings du rapport

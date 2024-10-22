@@ -16,11 +16,12 @@ from langchain import PromptTemplate
 from langchain_ollama import OllamaLLM
 from llama_index.core import Settings
 from llama_index.embeddings.huggingface import HuggingFaceEmbedding
-from file_utils import (charger_embeddings_rapport, charger_glossaire, process_pdf_to_index,
+from file_utils import (charger_embeddings_rapport, charger_glossaire,
                         load_text, sauvegarder_mentions_csv)
 from txt_manipulation import decouper_en_phrases, pretraiter_article
 from llms import comparer_article_rapport_with_rag, configure_embeddings
 from topic_classifier import comparer_article_rapport
+from pdf_processing import process_pdf_to_index
 
 def run_script_1():
     chemin_article = '/Users/mateodib/Desktop/IPCC_Answer_Based/_ _ C_est plus confortable de se dire que ce n_est pas si grave __cleaned.txt'
