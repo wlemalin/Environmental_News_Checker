@@ -81,7 +81,6 @@ def run_script_3():
         "phrase", "contexte", "glossary_terms", "definitions"])
 
 
-
 def run_script_4():
     """
     Quatrième Partie : Vérification des mentions au GIEC dans un article.
@@ -89,7 +88,7 @@ def run_script_4():
     et pour lister tous les sujets abordés. Les résultats sont sauvegardés dans un fichier CSV.
     """
     # Path to the CSV file
-    file_path = "/Users/mateodib/Desktop/IPCC_Answer_Based/mentions_extraites.csv"
+    file_path = './IPCC_Answer_Based/mentions_extraites.csv'
 
     nltk.download('punkt')  # Download sentence tokenization model
 
@@ -131,7 +130,7 @@ def run_script_4():
 
 
     # Save the initial analysis results to a CSV file using save_to_csv
-    chemin_resultats_csv = "climate_analysis_results.csv"
+    chemin_resultats_csv = './IPCC_Answer_Based/climate_analysis_results.csv'
     fieldnames = ["paragraph", "climate_related"]
     save_to_csv(analysis_results, chemin_resultats_csv, fieldnames)
 
@@ -146,13 +145,11 @@ def run_script_4():
     mentions = parsed_df.to_dict('records')
 
     # Save the parsed results to a CSV file using save_to_csv
-    chemin_final_csv = "final_climate_analysis_results.csv"
+    chemin_final_csv = './IPCC_Answer_Based/final_climate_analysis_results.csv'
     fieldnames_final = ["paragraph", "binary_response", "subjects"]
     save_to_csv(mentions, chemin_final_csv, fieldnames_final)
 
 
-
-# Main script execution
 def run_script_5():
     """
     Cinquième Partie : Génération de questions pour les paragraphes liés à l'environnement.
@@ -160,10 +157,10 @@ def run_script_5():
     dans des paragraphes classés comme étant liés à l'environnement.
     Les questions sont ensuite sauvegardées dans un fichier CSV.
     """
-    output_path_questions = "/Users/mateodib/Desktop/Environmental_News_Checker-main/final_climate_analysis_with_questions.csv"
+    output_path_questions = './IPCC_Answer_Based/final_climate_analysis_with_questions.csv'
 
     # Charger la base de données CSV contenant les paragraphes, la réponse binaire, et les thèmes
-    df = pd.read_csv("/Users/mateodib/Desktop/Environmental_News_Checker-main/final_climate_analysis_results_improved.csv")
+    df = pd.read_csv('./IPCC_Answer_Based/final_climate_analysis_results_improved.csv')
 
     # Initialize the LLM (Ollama)
     llm = Ollama(model="llama3.2:3b-instruct-fp16")
@@ -239,8 +236,6 @@ def run_script_6():
     # Sauvegarder les résultats
     save_to_csv(mentions, chemin_resultats_csv, [
         "phrase", "retrieved_sections", "generated_answer"])
-
-
 
 
 def run_all_scripts():
