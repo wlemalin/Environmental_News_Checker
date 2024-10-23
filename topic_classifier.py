@@ -33,8 +33,7 @@ def detect_glossary_terms(phrase: str, termes_glossaire: list[str]) -> list[str]
     return [term for term in termes_glossaire if term.lower() in words_in_phrase]
 
 
-# Fonction pour générer des fenêtres contextuelles
-def generate_context_windows(phrases: list[str], window_size: int = 3) -> list[str]:
+def generate_context_windows(phrases: list[str], window_size: int = 3) -> list[dict]:
     """
     Génère des fenêtres contextuelles à partir de la liste des phrases.
 
@@ -43,14 +42,13 @@ def generate_context_windows(phrases: list[str], window_size: int = 3) -> list[s
         window_size (int): Taille de la fenêtre (nombre de phrases par fenêtre).
 
     Returns:
-        list: Liste des fenêtres contextuelles.
+        list: Liste des fenêtres contextuelles sous forme de dictionnaires.
     """
     windows = []
-    for i in range(0, len(phrases), window_size):
-        context_window = " ".join(phrases[i:i+window_size])
-        windows.append(context_window)
+    for i in range(0, len(phrases)):
+        context_window = " ".join(phrases[max(0, i - window_size):min(i + window_size + 1, len(phrases))])
+        windows.append({"context": context_window, "current_phrase": phrases[i]})
     return windows
-
 
 # Fonction pour comparer les phrases d'un article avec les sections d'un rapport en utilisant des fenêtres contextuelles
 def comparer_article_rapport(phrases_article: list[str], embeddings_rapport: np.ndarray, sections_rapport: list[str], termes_glossaire: list[str], definitions_glossaire: list[str], window_size: int = 3) -> list[dict]:
@@ -76,7 +74,7 @@ def comparer_article_rapport(phrases_article: list[str], embeddings_rapport: np.
 
     # Générer les embeddings pour les fenêtres contextuelles
     print("Génération des embeddings des fenêtres contextuelles...")
-    embeddings_windows = [Settings.embed_model.get_text_embedding(window) for window in context_windows]
+    embeddings_windows = [Settings.embed_model.get_text_embedding(window["context"]) for window in context_windows]
 
     # Comparer chaque fenêtre contextuelle aux sections du rapport
     for i, window_embedding in enumerate(embeddings_windows):
@@ -90,17 +88,17 @@ def comparer_article_rapport(phrases_article: list[str], embeddings_rapport: np.
 
         # Itérer à travers les sections et trouver les sections pertinentes
         for j, similarite in enumerate(similarites_np[0]):
-            if similarite > seuil_similarite:
-                glossary_terms = detect_glossary_terms(context_windows[i], termes_glossaire)
+                if similarite > seuil_similarite:
+                    glossary_terms = detect_glossary_terms(context_windows[i]["current_phrase"], termes_glossaire)
 
-                mentions.append({
-                    "phrase": context_windows[i],
-                    "section": sections_rapport[j],
-                    "similarite": similarite,
-                    "glossary_terms": glossary_terms,
-                    # Ajouter les définitions correspondantes aux termes du glossaire détectés
-                    "definitions": [definitions_glossaire[termes_glossaire.index(term)] for term in glossary_terms if term in termes_glossaire]
-                })
-
+                    mentions.append({
+                        "phrase": context_windows[i]["current_phrase"],  # Récupération de la phrase
+                        "contexte": context_windows[i]["context"],
+                        "section": sections_rapport[j],
+                        "similarite": similarite,
+                        "glossary_terms": glossary_terms,
+                        # Ajouter les définitions correspondantes aux termes du glossaire détectés
+                        "definitions": [definitions_glossaire[termes_glossaire.index(term)] for term in glossary_terms if term in termes_glossaire]
+                    })
     print(f"{len(mentions)} mentions trouvées.")
     return mentions

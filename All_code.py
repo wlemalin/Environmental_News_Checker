@@ -28,8 +28,8 @@ def run_script_1():
     Première Partie : Nettoyage de l'article de Presse.
     Charge et prétraite l'article en supprimant les éléments non pertinents, puis le sauvegarde dans un dossier.
     """
-    chemin_article = '/Users/mateodib/Desktop/IPCC_Answer_Based/_ _ C_est plus confortable de se dire que ce n_est pas si grave __cleaned.txt'
-    chemin_dossier_nettoye = '/Users/mateodib/Desktop/IPCC_Answer_Based/Nettoye_Articles/'
+    chemin_article = './IPCC_Answer_Based/_ _ C_est plus confortable de se dire que ce n_est pas si grave __cleaned.txt'
+    chemin_dossier_nettoye = './IPCC_Answer_Based/Nettoye_Articles/'
     # Prétraiter l'article
     pretraiter_article(chemin_article, chemin_dossier_nettoye)
 
@@ -40,8 +40,8 @@ def run_script_2():
     Extrait le texte d'un rapport PDF, le nettoie et l'indexe en sections, puis sauvegarde le tout dans un fichier JSON.
     """
     Settings.embed_model = HuggingFaceEmbedding(model_name="BAAI/bge-small-en-v1.5")
-    chemin_rapport_pdf = '/Users/mateodib/Desktop/IPCC_Answer_Based/IPCC_AR6_SYR_SPM.pdf'
-    chemin_output_json = '/Users/mateodib/Desktop/IPCC_Answer_Based/rapport_indexed.json'
+    chemin_rapport_pdf = './IPCC_Answer_Based/IPCC_AR6_SYR_SPM.pdf'
+    chemin_output_json = './IPCC_Answer_Based/rapport_indexed.json'
     # Traiter le PDF et sauvegarder les sections indexées
     process_pdf_to_index(chemin_rapport_pdf, chemin_output_json)
 
@@ -52,10 +52,10 @@ def run_script_3():
     Compare les phrases d'un article avec les sections d'un rapport et identifie les termes du glossaire.
     Sauvegarde les résultats dans un fichier CSV.
     """
-    chemin_cleaned_article = '/Users/mateodib/Desktop/IPCC_Answer_Based/Nettoye_Articles/_ _ C_est plus confortable de se dire que ce n_est pas si grave __cleaned_cleaned.txt'
-    chemin_resultats_csv = '/Users/mateodib/Desktop/IPCC_Answer_Based/mentions_extraites.csv'
-    chemin_rapport_embeddings = '/Users/mateodib/Desktop/IPCC_Answer_Based/rapport_indexed.json'
-    chemin_glossaire = '/Users/mateodib/Desktop/IPCC_Answer_Based/translated_glossary_with_definitions.csv'
+    chemin_cleaned_article = './IPCC_Answer_Based/Nettoye_Articles/_ _ C_est plus confortable de se dire que ce n_est pas si grave __cleaned_cleaned.txt'
+    chemin_resultats_csv = './IPCC_Answer_Based/mentions_extraites.csv'
+    chemin_rapport_embeddings = './IPCC_Answer_Based/rapport_indexed.json'
+    chemin_glossaire = './IPCC_Answer_Based/translated_glossary_with_definitions.csv'
     
     # Charger le glossaire (termes et définitions)
     termes_glossaire, definitions_glossaire = charger_glossaire(chemin_glossaire)
@@ -74,7 +74,7 @@ def run_script_3():
     
     # Sauvegarder les correspondances dans un fichier CSV
     sauvegarder_mentions_csv(mentions, chemin_resultats_csv, [
-                             "phrase", "section", "similarite", "glossary_terms", "definitions"])
+                             "phrase", "contexte", "section", "similarite", "glossary_terms", "definitions"])
 
 
 def run_script_4():
@@ -83,9 +83,9 @@ def run_script_4():
     Utilise un modèle LLM pour générer des réponses à partir de sections pertinentes d'un rapport.
     Sauvegarde les résultats dans un fichier CSV.
     """
-    chemin_cleaned_article = '/Users/mateodib/Desktop/IPCC_Answer_Based/Nettoye_Articles/_ _ C_est plus confortable de se dire que ce n_est pas si grave __cleaned_cleaned.txt'
-    chemin_resultats_csv = '/Users/mateodib/Desktop/IPCC_Answer_Based/mentions_rag_extraites.csv'
-    chemin_rapport_embeddings = '/Users/mateodib/Desktop/IPCC_Answer_Based/rapport_indexed.json'
+    chemin_cleaned_article = './IPCC_Answer_Based/Nettoye_Articles/_ _ C_est plus confortable de se dire que ce n_est pas si grave __cleaned_cleaned.txt'
+    chemin_resultats_csv = './IPCC_Answer_Based/mentions_rag_extraites.csv'
+    chemin_rapport_embeddings = './IPCC_Answer_Based/rapport_indexed.json'
     
     # Configurer les embeddings (Ollama ou HuggingFace)
     configure_embeddings(use_ollama=False)
