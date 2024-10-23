@@ -21,7 +21,7 @@ from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 
 from file_utils import (charger_embeddings_rapport, charger_glossaire,
                         load_text, save_to_csv, load_paragraphs_from_csv, create_final_dataframe)
-from llms import comparer_article_rapport_with_rag, configure_embeddings, analyze_paragraphs_parallel
+from llms import comparer_article_rapport_with_rag, configure_embeddings, analyze_paragraphs_parallel, create_prompt_template, generate_questions_parallel
 from pdf_processing import process_pdf_to_index
 from topic_classifier import keywords_for_each_chunck
 from txt_manipulation import decouper_en_phrases, pretraiter_article
@@ -131,7 +131,11 @@ def run_script_4():
 
 
 def run_script_5():
+    # Path to the CSV file
+    file_path = "/Users/mateodib/Desktop/IPCC_Answer_Based/mentions_extraites.csv"
+
     nltk.download('punkt')  # Download sentence tokenization model
+
 
     # Initialize the LLM (Ollama)
     llm = Ollama(model="llama3.2:3b-instruct-fp16")
@@ -160,8 +164,6 @@ def run_script_5():
     # Create the LLM chain
     llm_chain = LLMChain(prompt=prompt, llm=llm)
 
-    # Path to the CSV file
-    file_path = "/Users/mateodib/Desktop/IPCC_Answer_Based/mentions_extraites.csv"
 
     # Load paragraphs from the "contexte" column of the CSV
     paragraphs = load_paragraphs_from_csv(file_path)
@@ -192,6 +194,40 @@ def run_script_5():
     save_to_csv(mentions, chemin_final_csv, fieldnames_final)
 
 
+
+# Main script execution
+def run_script_6():
+    output_path_questions = "/Users/mateodib/Desktop/Environmental_News_Checker-main/final_climate_analysis_with_questions.csv"
+
+    # Charger la base de données CSV contenant les paragraphes, la réponse binaire, et les thèmes
+    df = pd.read_csv("/Users/mateodib/Desktop/Environmental_News_Checker-main/final_climate_analysis_results_improved.csv")
+
+    # Initialize the LLM (Ollama)
+    llm = Ollama(model="llama3.2:3b-instruct-fp16")
+
+    # Créer le template de prompt
+    prompt = create_prompt_template()
+
+
+    # Convertir la colonne 'binary_response' en entier (si elle est en format texte)
+    df['binary_response'] = pd.to_numeric(df['binary_response'], errors='coerce')
+
+    # Filtrer uniquement les paragraphes identifiés comme liés à l'environnement (réponse binaire '1')
+    df_environment = df[df['binary_response'] == 1]
+
+    # Vérifier le DataFrame filtré
+    print(df_environment)
+
+    # Créer la LLMChain pour la génération des questions
+    llm_chain = LLMChain(prompt=prompt, llm=llm)
+
+    # Générer les questions pour les paragraphes liés à l'environnement
+    questions_df = generate_questions_parallel(df_environment, llm_chain)
+
+    # Sauvegarder les résultats dans un nouveau fichier CSV
+    questions_df.to_csv(output_path_questions, index=False)
+    print(f"Questions generated and saved to {output_path_questions}")
+
 def run_all_scripts():
     """
     Exécute toutes les parties du script, dans l'ordre.
@@ -201,6 +237,7 @@ def run_all_scripts():
     run_script_3()
     #    run_script_4()
     run_script_5()
+    run_script_6()
 
 
 if __name__ == "__main__":
@@ -211,9 +248,10 @@ if __name__ == "__main__":
     print("1. Clean press articles")
     print("2. Embed IPCC report")
     print("3. Topic Recognition")
-    print("4. Check for IPCC references")
-    print("5. Run RAG")
-    print("6. Run all scripts")
+    print("4. Run RAG")
+    print("5. Check for IPCC references")
+    print("6.Create question for each chunk")
+    print("7. Run all scripts")
     choice = input("Enter your choice: ")
 
     match choice:
@@ -234,6 +272,9 @@ if __name__ == "__main__":
             run_script_5()
         case "6":
             print("You chose Option 6")
+            run_script_6()
+        case "7":
+            print("You chose Option 7")
             run_all_scripts()
         case _:
             print("Invalid choice. Please choose a valid option.")

@@ -155,3 +155,86 @@ def analyze_paragraphs_parallel(paragraphs, llm_chain):
                 print(f"Error analyzing paragraph: {paragraph} - {exc}")
     return results
 
+
+
+def create_prompt_template():
+    """
+    Create a prompt template for generating a question based on a paragraph and themes.
+
+    Returns:
+        PromptTemplate: A template to generate specific questions for verification purposes.
+    """
+# Template pour générer une question à partir d'un paragraphe et des thèmes
+    prompt_template = """
+    Vous êtes chargé de formuler une **question précise** pour vérifier les informations mentionnées dans un article de presse en consultant directement les rapports du GIEC (Groupe d'experts intergouvernemental sur l'évolution du climat).
+
+    Cette question sera utilisée dans un système de récupération d'information (RAG) pour extraire les sections pertinentes des rapports du GIEC et comparer les informations des rapports avec celles de l'article de presse.
+
+    **Objectif** : La question doit permettre de vérifier si les informations fournies dans le paragraphe de l'article sont corroborées ou contestées par les preuves scientifiques dans les rapports du GIEC.
+
+    **Instructions** :
+
+    1. Analysez le paragraphe et les thèmes fournis pour identifier les affirmations clés ou les informations à vérifier.
+    2. Formulez une **question claire et spécifique** orientée vers la vérification de ces affirmations ou informations à partir des rapports du GIEC.
+    3. La question doit être **directement vérifiable** dans les rapports du GIEC via un système RAG.
+    4. **IMPORTANT** : Répondez uniquement avec la question, sans ajouter d'explications ou de contexte supplémentaire.
+
+    Paragraphe : {paragraph}
+
+    Thèmes principaux : {themes}
+
+    Générez uniquement la **question** spécifique qui permettrait de vérifier les informations mentionnées dans ce paragraphe en consultant les rapports du GIEC via un système de récupération d'information (RAG).
+    """
+    return PromptTemplate(template=prompt_template, input_variables=["paragraph", "themes"])
+
+
+
+# Fonction pour générer une question avec Llama3.2
+def generate_question(paragraph, themes, llm_chain):
+    """
+    Generate a verification question using Llama3.2 based on a given paragraph and themes.
+
+    Args:
+        paragraph (str): The paragraph from which to generate the question.
+        themes (list of str): Themes related to the paragraph.
+        llm_chain (LLMChain): The language model chain to use for generation.
+
+    Returns:
+        str: The generated question.
+    """
+    inputs = {"paragraph": paragraph, "themes": ', '.join(themes)}
+    response = llm_chain.invoke(inputs)  # Utilisation de invoke pour garantir une invocation appropriée
+    if isinstance(response, dict) and "text" in response:
+        return response["text"].strip()
+    return response.strip()
+
+# Fonction pour traiter les questions en parallèle
+def generate_questions_parallel(df, llm_chain):
+    """
+    Generate questions for multiple paragraphs in parallel.
+
+    Args:
+        df (DataFrame): A pandas DataFrame containing paragraphs and their corresponding themes.
+        llm_chain (LLMChain): The language model chain to use for generation.
+
+    Returns:
+        DataFrame: A DataFrame containing the original rows with generated questions.
+    """
+    results = []
+    
+    # Utilisation de ThreadPoolExecutor pour le traitement parallèle
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        futures = {executor.submit(generate_question, row['paragraph'], row['subjects'].split(', '), llm_chain): row for idx, row in df.iterrows() if row['binary_response'] == 1}
+        
+        # Parcourir les résultats à mesure qu'ils sont terminés
+        for future in tqdm(concurrent.futures.as_completed(futures), total=len(futures), desc="Generating questions"):
+            row = futures[future]
+            try:
+                question = future.result()
+                row['question'] = question
+                results.append(row)
+            except Exception as exc:
+                print(f"Error generating question for paragraph: {row['paragraph']} - {exc}")
+    
+    return pd.DataFrame(results)
+
