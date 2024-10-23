@@ -12,6 +12,7 @@ Fonctionnalités principales :
 
 from concurrent.futures import ThreadPoolExecutor  # Pour la parallélisation
 import numpy as np
+import pandas as pd
 import tqdm
 from llama_index.core import Settings
 from llama_index.embeddings.huggingface import HuggingFaceEmbedding
@@ -127,7 +128,7 @@ def comparer_article_rapport_with_rag(phrases_article: list[str], embeddings_rap
 
 
 # Function to analyze a paragraph with Llama 3.2
-def analyze_paragraph_with_llm(paragraph, llm_chain):
+def analyze_paragraph_with_llm(paragraph: str, llm_chain) -> str:
     """
     Analyse un paragraphe à l'aide du modèle Llama 3.2 et génère une réponse.
 
@@ -147,7 +148,7 @@ def analyze_paragraph_with_llm(paragraph, llm_chain):
 
 
 # Function to handle the analysis of paragraphs in parallel
-def analyze_paragraphs_parallel(paragraphs, llm_chain):
+def analyze_paragraphs_parallel(paragraphs: list[str], llm_chain) -> list[dict[str, str]]:
     """
     Traite l'analyse de plusieurs paragraphes en parallèle en utilisant le modèle Llama 3.2.
 
@@ -177,7 +178,7 @@ def analyze_paragraphs_parallel(paragraphs, llm_chain):
 
 
 
-def create_prompt_template():
+def create_prompt_template() -> PromptTemplate:
     """
     Create a prompt template for generating a question based on a paragraph and themes.
 
@@ -210,7 +211,7 @@ def create_prompt_template():
 
 
 # Fonction pour générer une question avec Llama3.2
-def generate_question(paragraph, themes, llm_chain):
+def generate_question(paragraph: str, themes: list[str], llm_chain) -> str:
     """
     Generate a verification question using Llama3.2 based on a given paragraph and themes.
 
@@ -229,7 +230,7 @@ def generate_question(paragraph, themes, llm_chain):
     return response.strip()
 
 # Fonction pour traiter les questions en parallèle
-def generate_questions_parallel(df, llm_chain):
+def generate_questions_parallel(df: pd.DataFrame, llm_chain) -> pd.DataFrame:
     """
     Generate questions for multiple paragraphs in parallel.
 

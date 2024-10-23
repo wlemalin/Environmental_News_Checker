@@ -81,58 +81,10 @@ def run_script_3():
         "phrase", "contexte", "glossary_terms", "definitions"])
 
 
+
 def run_script_4():
     """
-    Quatrième Partie : RAG (Retrieve-and-Generate) avec Llama3.2.
-    Utilise un modèle LLM pour générer des réponses à partir de sections pertinentes d'un rapport.
-    Sauvegarde les résultats dans un fichier CSV.
-    """
-    chemin_cleaned_article = './IPCC_Answer_Based/Nettoye_Articles/_ _ C_est plus confortable de se dire que ce n_est pas si grave __cleaned_cleaned.txt'
-    chemin_resultats_csv = './IPCC_Answer_Based/mentions_rag_extraites.csv'
-    chemin_rapport_embeddings = './IPCC_Answer_Based/rapport_indexed.json'
-
-    # Configurer les embeddings (Ollama ou HuggingFace)
-    configure_embeddings()
-
-    # Charger l'article nettoyé
-    texte_nettoye = load_text(chemin_cleaned_article)
-
-    # Découper l'article en phrases
-    phrases = decouper_en_phrases(texte_nettoye)
-
-    # Charger les embeddings du rapport
-    embeddings_rapport, sections_rapport = charger_embeddings_rapport(
-        chemin_rapport_embeddings)
-
-    # Définir le template de prompt pour la génération de réponses LLM
-    prompt_template = """
-    You are tasked with answering the following question based on the provided sections from the IPCC report.
-    Ensure that your response is factual and based on the retrieved sections.
-    
-    Question: {question}
-    Relevant Sections: {consolidated_text}
-    
-    Answer:
-    """
-    prompt = PromptTemplate(template=prompt_template, input_variables=[
-                            "question", "consolidated_text"])
-
-    # Créer la chaîne LLM avec Ollama
-    llm = OllamaLLM(model="llama3.2:3b-instruct-fp16")
-    llm_chain = LLMChain(prompt=prompt, llm=llm)
-
-    # Comparer l'article au rapport avec RAG et parallélisation
-    mentions = comparer_article_rapport_with_rag(
-        phrases, embeddings_rapport, sections_rapport, llm_chain)
-
-    # Sauvegarder les résultats
-    save_to_csv(mentions, chemin_resultats_csv, [
-        "phrase", "retrieved_sections", "generated_answer"])
-
-
-def run_script_5():
-    """
-    Cinquième Partie : Vérification des mentions au GIEC dans un article.
+    Quatrième Partie : Vérification des mentions au GIEC dans un article.
     Utilise un LLM pour analyser chaque paragraphe d'un article de presse afin d'identifier s'il mentionne le climat,
     et pour lister tous les sujets abordés. Les résultats sont sauvegardés dans un fichier CSV.
     """
@@ -201,9 +153,9 @@ def run_script_5():
 
 
 # Main script execution
-def run_script_6():
+def run_script_5():
     """
-    Sixième Partie : Génération de questions pour les paragraphes liés à l'environnement.
+    Cinquième Partie : Génération de questions pour les paragraphes liés à l'environnement.
     Utilise un modèle LLM pour générer des questions spécifiques pour vérifier les informations contenues
     dans des paragraphes classés comme étant liés à l'environnement.
     Les questions sont ensuite sauvegardées dans un fichier CSV.
@@ -239,6 +191,58 @@ def run_script_6():
     questions_df.to_csv(output_path_questions, index=False)
     print(f"Questions generated and saved to {output_path_questions}")
 
+
+def run_script_6():
+    """
+    Sixième Partie : RAG (Retrieve-and-Generate) avec Llama3.2.
+    Utilise un modèle LLM pour générer des réponses à partir de sections pertinentes d'un rapport.
+    Sauvegarde les résultats dans un fichier CSV.
+    """
+    chemin_cleaned_article = './IPCC_Answer_Based/Nettoye_Articles/_ _ C_est plus confortable de se dire que ce n_est pas si grave __cleaned_cleaned.txt'
+    chemin_resultats_csv = './IPCC_Answer_Based/mentions_rag_extraites.csv'
+    chemin_rapport_embeddings = './IPCC_Answer_Based/rapport_indexed.json'
+
+    # Configurer les embeddings (Ollama ou HuggingFace)
+    configure_embeddings()
+
+    # Charger l'article nettoyé
+    texte_nettoye = load_text(chemin_cleaned_article)
+
+    # Découper l'article en phrases
+    phrases = decouper_en_phrases(texte_nettoye)
+
+    # Charger les embeddings du rapport
+    embeddings_rapport, sections_rapport = charger_embeddings_rapport(
+        chemin_rapport_embeddings)
+
+    # Définir le template de prompt pour la génération de réponses LLM
+    prompt_template = """
+    You are tasked with answering the following question based on the provided sections from the IPCC report.
+    Ensure that your response is factual and based on the retrieved sections.
+    
+    Question: {question}
+    Relevant Sections: {consolidated_text}
+    
+    Answer:
+    """
+    prompt = PromptTemplate(template=prompt_template, input_variables=[
+                            "question", "consolidated_text"])
+
+    # Créer la chaîne LLM avec Ollama
+    llm = OllamaLLM(model="llama3.2:3b-instruct-fp16")
+    llm_chain = LLMChain(prompt=prompt, llm=llm)
+
+    # Comparer l'article au rapport avec RAG et parallélisation
+    mentions = comparer_article_rapport_with_rag(
+        phrases, embeddings_rapport, sections_rapport, llm_chain)
+
+    # Sauvegarder les résultats
+    save_to_csv(mentions, chemin_resultats_csv, [
+        "phrase", "retrieved_sections", "generated_answer"])
+
+
+
+
 def run_all_scripts():
     """
     Exécute toutes les parties du script, dans l'ordre.
@@ -246,10 +250,9 @@ def run_all_scripts():
     run_script_1()
     run_script_2()
     run_script_3()
-    #    run_script_4()
+    run_script_4()
     run_script_5()
     run_script_6()
-
 
 if __name__ == "__main__":
     """
@@ -259,9 +262,9 @@ if __name__ == "__main__":
     print("1. Clean press articles")
     print("2. Embed IPCC report")
     print("3. Topic Recognition")
-    print("4. Run RAG")
-    print("5. Check for IPCC references")
-    print("6.Create question for each chunk")
+    print("4. Check for IPCC references")
+    print("5. Create question for each chunk")
+    print("6. Run RAG")
     print("7. Run all scripts")
     choice = input("Enter your choice: ")
 
@@ -277,13 +280,13 @@ if __name__ == "__main__":
             run_script_3()
         case "4":
             print("You chose Option 4")
-            run_script_4()
+            run_script_6()
         case "5":
             print("You chose Option 5")
-            run_script_5()
+            run_script_4()
         case "6":
             print("You chose Option 6")
-            run_script_6()
+            run_script_5()
         case "7":
             print("You chose Option 7")
             run_all_scripts()

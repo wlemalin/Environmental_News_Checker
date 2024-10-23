@@ -135,7 +135,7 @@ def decouper_en_phrases(texte: str) -> list[str]:
 
 
 # Function to parse the LLM's response
-def parse_llm_response(response):
+def parse_llm_response(response: str) -> tuple[str, list[str]]:
     """
     Parse la réponse d'un modèle LLM pour extraire une réponse binaire et une liste de sujets abordés.
 

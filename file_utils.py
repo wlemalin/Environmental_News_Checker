@@ -134,7 +134,7 @@ def save_to_csv(mentions: list[dict], chemin_csv: str, fieldnames: list[str]) ->
 
 
 # Function to load paragraphs from the "contexte" column of a CSV file
-def load_paragraphs_from_csv(csv_file_path):
+def load_paragraphs_from_csv(csv_file_path: str) -> list[str]:
     """
     Charge les paragraphes depuis la colonne 'contexte' d'un fichier CSV.
 
@@ -151,7 +151,7 @@ def load_paragraphs_from_csv(csv_file_path):
 
 
 # Function to parse all responses and create a DataFrame
-def create_final_dataframe(df):
+def create_final_dataframe(df: pd.DataFrame) -> pd.DataFrame:
     """
     Parse toutes les réponses d'un DataFrame et crée un DataFrame final.
 
