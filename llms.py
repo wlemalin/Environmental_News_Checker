@@ -128,6 +128,16 @@ def comparer_article_rapport_with_rag(phrases_article: list[str], embeddings_rap
 
 # Function to analyze a paragraph with Llama 3.2
 def analyze_paragraph_with_llm(paragraph, llm_chain):
+    """
+    Analyse un paragraphe à l'aide du modèle Llama 3.2 et génère une réponse.
+
+    Args:
+        paragraph (str): Le paragraphe à analyser.
+        llm_chain: Le modèle LLMChain utilisé pour l'analyse.
+
+    Returns:
+        str: La réponse générée après l'analyse du paragraphe.
+    """
     inputs = {"paragraph": paragraph}
     response = llm_chain.invoke(inputs)
     if isinstance(response, dict) and "text" in response:
@@ -138,6 +148,16 @@ def analyze_paragraph_with_llm(paragraph, llm_chain):
 
 # Function to handle the analysis of paragraphs in parallel
 def analyze_paragraphs_parallel(paragraphs, llm_chain):
+    """
+    Traite l'analyse de plusieurs paragraphes en parallèle en utilisant le modèle Llama 3.2.
+
+    Args:
+        paragraphs (list[str]): Liste des paragraphes à analyser.
+        llm_chain: Le modèle LLMChain utilisé pour l'analyse.
+
+    Returns:
+        list[dict]: Résultats de l'analyse pour chaque paragraphe, avec le texte original et la réponse générée.
+    """
     results = []
     # Use ThreadPoolExecutor for parallel processing
     with concurrent.futures.ThreadPoolExecutor() as executor:

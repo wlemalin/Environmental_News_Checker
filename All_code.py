@@ -131,6 +131,11 @@ def run_script_4():
 
 
 def run_script_5():
+    """
+    Cinquième Partie : Vérification des mentions au GIEC dans un article.
+    Utilise un LLM pour analyser chaque paragraphe d'un article de presse afin d'identifier s'il mentionne le climat,
+    et pour lister tous les sujets abordés. Les résultats sont sauvegardés dans un fichier CSV.
+    """
     # Path to the CSV file
     file_path = "/Users/mateodib/Desktop/IPCC_Answer_Based/mentions_extraites.csv"
 
@@ -197,6 +202,12 @@ def run_script_5():
 
 # Main script execution
 def run_script_6():
+    """
+    Sixième Partie : Génération de questions pour les paragraphes liés à l'environnement.
+    Utilise un modèle LLM pour générer des questions spécifiques pour vérifier les informations contenues
+    dans des paragraphes classés comme étant liés à l'environnement.
+    Les questions sont ensuite sauvegardées dans un fichier CSV.
+    """
     output_path_questions = "/Users/mateodib/Desktop/Environmental_News_Checker-main/final_climate_analysis_with_questions.csv"
 
     # Charger la base de données CSV contenant les paragraphes, la réponse binaire, et les thèmes

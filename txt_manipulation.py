@@ -136,6 +136,15 @@ def decouper_en_phrases(texte: str) -> list[str]:
 
 # Function to parse the LLM's response
 def parse_llm_response(response):
+    """
+    Parse la réponse d'un modèle LLM pour extraire une réponse binaire et une liste de sujets abordés.
+
+    Args:
+        response (str): La réponse du modèle LLM à analyser.
+
+    Returns:
+        tuple: Une réponse binaire ('0' ou '1') et une liste des sujets abordés.
+    """
     binary_match = re.search(r"Réponse binaire\s?\(0 ou 1\)\s?:?\s?(\d)", response)
     binary_response = binary_match.group(1) if binary_match else None
     

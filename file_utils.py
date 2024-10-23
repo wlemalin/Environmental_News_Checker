@@ -135,6 +135,15 @@ def save_to_csv(mentions: list[dict], chemin_csv: str, fieldnames: list[str]) ->
 
 # Function to load paragraphs from the "contexte" column of a CSV file
 def load_paragraphs_from_csv(csv_file_path):
+    """
+    Charge les paragraphes depuis la colonne 'contexte' d'un fichier CSV.
+
+    Args:
+        csv_file_path (str): Chemin vers le fichier CSV.
+
+    Returns:
+        list[str]: Liste des paragraphes provenant de la colonne 'contexte'.
+    """
     df = pd.read_csv(csv_file_path)
     paragraphs = df['contexte'].dropna().tolist()
     return paragraphs
@@ -143,6 +152,15 @@ def load_paragraphs_from_csv(csv_file_path):
 
 # Function to parse all responses and create a DataFrame
 def create_final_dataframe(df):
+    """
+    Parse toutes les réponses d'un DataFrame et crée un DataFrame final.
+
+    Args:
+        df (pd.DataFrame): Le DataFrame contenant les paragraphes et réponses analysées.
+
+    Returns:
+        pd.DataFrame: Un nouveau DataFrame contenant les paragraphes, les réponses binaires et les sujets associés.
+    """
     parsed_data = []
     for _, row in df.iterrows():
         paragraph = row['paragraph']
