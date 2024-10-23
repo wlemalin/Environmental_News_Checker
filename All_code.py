@@ -19,7 +19,7 @@ from file_utils import (charger_embeddings_rapport, charger_glossaire,
                         load_text, sauvegarder_mentions_csv)
 from txt_manipulation import decouper_en_phrases, pretraiter_article
 from llms import comparer_article_rapport_with_rag, configure_embeddings
-from topic_classifier import comparer_article_rapport
+from topic_classifier import keywords_for_each_chunck
 from pdf_processing import process_pdf_to_index
 
 
@@ -54,8 +54,8 @@ def run_script_3():
     """
     chemin_cleaned_article = './IPCC_Answer_Based/Nettoye_Articles/_ _ C_est plus confortable de se dire que ce n_est pas si grave __cleaned_cleaned.txt'
     chemin_resultats_csv = './IPCC_Answer_Based/mentions_extraites.csv'
-    chemin_rapport_embeddings = './IPCC_Answer_Based/rapport_indexed.json'
     chemin_glossaire = './IPCC_Answer_Based/translated_glossary_with_definitions.csv'
+    #chemin_rapport_embeddings = './IPCC_Answer_Based/rapport_indexed.json'
     
     # Charger le glossaire (termes et définitions)
     termes_glossaire, definitions_glossaire = charger_glossaire(chemin_glossaire)
@@ -66,15 +66,12 @@ def run_script_3():
     # Découper l'article en phrases
     phrases = decouper_en_phrases(texte_nettoye)
     
-    # Charger les embeddings du rapport
-    embeddings_rapport, sections_rapport = charger_embeddings_rapport(chemin_rapport_embeddings)
-    
     # Comparer l'article avec le rapport
-    mentions = comparer_article_rapport(phrases, embeddings_rapport, sections_rapport, termes_glossaire, definitions_glossaire)
+    mentions = keywords_for_each_chunck(phrases, termes_glossaire, definitions_glossaire)
     
     # Sauvegarder les correspondances dans un fichier CSV
     sauvegarder_mentions_csv(mentions, chemin_resultats_csv, [
-                             "phrase", "contexte", "section", "similarite", "glossary_terms", "definitions"])
+                             "phrase", "contexte", "glossary_terms", "definitions"])
 
 
 def run_script_4():
@@ -88,7 +85,7 @@ def run_script_4():
     chemin_rapport_embeddings = './IPCC_Answer_Based/rapport_indexed.json'
     
     # Configurer les embeddings (Ollama ou HuggingFace)
-    configure_embeddings(use_ollama=False)
+    configure_embeddings()
     
     # Charger l'article nettoyé
     texte_nettoye = load_text(chemin_cleaned_article)

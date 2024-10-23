@@ -21,7 +21,7 @@ from tqdm import tqdm  # Pour la barre de progression
 
 
 # Fonction pour configurer les modèles d'embeddings
-def configure_embeddings(use_ollama: bool = True) -> None:
+def configure_embeddings(use_ollama: bool = False) -> None:
     """
     Configure le modèle d'embeddings à utiliser (Ollama ou HuggingFace).
 

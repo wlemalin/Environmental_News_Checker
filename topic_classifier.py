@@ -51,14 +51,12 @@ def generate_context_windows(phrases: list[str], window_size: int = 3) -> list[d
     return windows
 
 # Fonction pour comparer les phrases d'un article avec les sections d'un rapport en utilisant des fenêtres contextuelles
-def comparer_article_rapport(phrases_article: list[str], embeddings_rapport: np.ndarray, sections_rapport: list[str], termes_glossaire: list[str], definitions_glossaire: list[str], window_size: int = 3) -> list[dict]:
+def keywords_for_each_chunck(phrases_article: list[str], termes_glossaire: list[str], definitions_glossaire: list[str], window_size: int = 3) -> list[dict]:
     """
     Compare les phrases de l'article avec les sections du rapport en générant des fenêtres contextuelles et en utilisant les embeddings.
 
     Args:
         phrases_article (list[str]): Liste des phrases de l'article.
-        embeddings_rapport (np.ndarray): Embeddings des sections du rapport.
-        sections_rapport (list[str]): Liste des sections du rapport.
         termes_glossaire (list[str]): Liste des termes du glossaire.
         definitions_glossaire (list[str]): Liste des définitions des termes du glossaire.
         window_size (int): Taille de la fenêtre contextuelle (nombre de phrases par fenêtre).
@@ -78,6 +76,7 @@ def comparer_article_rapport(phrases_article: list[str], embeddings_rapport: np.
     for i in range(0,len(context_windows)):
             glossary_terms = detect_glossary_terms(context_windows[i]["current_phrase"], termes_glossaire)
             mentions.append({
+                # "article_title":
                 "phrase": context_windows[i]["current_phrase"],  # Récupération de la phrase
                 "contexte": context_windows[i]["context"],
                 "glossary_terms": glossary_terms,
