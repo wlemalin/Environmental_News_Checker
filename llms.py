@@ -123,3 +123,35 @@ def comparer_article_rapport_with_rag(phrases_article: list[str], embeddings_rap
 
     print(f"{len(mentions)} mentions trouvées.")
     return mentions
+
+
+
+# Function to analyze a paragraph with Llama 3.2
+def analyze_paragraph_with_llm(paragraph, llm_chain):
+    inputs = {"paragraph": paragraph}
+    response = llm_chain.invoke(inputs)
+    if isinstance(response, dict) and "text" in response:
+        return response["text"].strip()
+    return response.strip()
+
+
+
+# Function to handle the analysis of paragraphs in parallel
+def analyze_paragraphs_parallel(paragraphs, llm_chain):
+    results = []
+    # Use ThreadPoolExecutor for parallel processing
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        # Create a task for each paragraph
+        futures = {executor.submit(analyze_paragraph_with_llm, paragraph, llm_chain): paragraph for paragraph in paragraphs if len(paragraph.strip()) > 0}
+        # Iterate over results as they complete
+        for future in tqdm(concurrent.futures.as_completed(futures), total=len(futures), desc="Analyzing paragraphs"):
+            paragraph = futures[future]
+            try:
+                analysis = future.result()
+                results.append({"paragraph": paragraph, "climate_related": analysis})
+                # Display the response after each analysis
+                print(f"Paragraph:\n{paragraph}\nLLM Response: {analysis}\n")
+            except Exception as exc:
+                print(f"Error analyzing paragraph: {paragraph} - {exc}")
+    return results
+

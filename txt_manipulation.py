@@ -132,3 +132,21 @@ def decouper_en_phrases(texte: str) -> list[str]:
     phrases = nltk.sent_tokenize(texte)
     print(f"{len(phrases)} phrases trouvées.")
     return phrases
+
+
+# Function to parse the LLM's response
+def parse_llm_response(response):
+    binary_match = re.search(r"Réponse binaire\s?\(0 ou 1\)\s?:?\s?(\d)", response)
+    binary_response = binary_match.group(1) if binary_match else None
+    
+    # Extraire la liste des sujets abordés
+    subjects_match = re.search(r"Liste des sujets abordés\s?:?\s*(\[.*?\])", response, re.DOTALL)
+    if subjects_match:
+        subjects_list = subjects_match.group(1).strip("[]").split(",")
+        subjects_list = [subject.strip() for subject in subjects_list]
+    else:
+        # Cas où la liste des sujets n'est pas dans un format de liste explicite
+        subjects_match_alt = re.search(r"Liste des sujets abordés\s?:?\s*(.*)", response, re.DOTALL)
+        subjects_list = subjects_match_alt.group(1).strip().split(",") if subjects_match_alt else []
+    
+    return binary_response, subjects_list

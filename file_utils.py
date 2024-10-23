@@ -17,6 +17,7 @@ import os
 import pandas as pd
 from llama_index.core import Settings
 from pdfminer.high_level import extract_text
+from txt_manipulation import parse_llm_response
 
 
 # Fonction pour charger le glossaire traduit avec termes et définitions
@@ -113,7 +114,7 @@ def charger_embeddings_rapport(chemin_rapport_embeddings: str) -> tuple[list, li
 
 
 # Fonction pour sauvegarder les mentions ou correspondances dans un fichier CSV
-def sauvegarder_mentions_csv(mentions: list[dict], chemin_csv: str, fieldnames: list[str]) -> None:
+def save_to_csv(mentions: list[dict], chemin_csv: str, fieldnames: list[str]) -> None:
     """
     Sauvegarde les mentions ou correspondances dans un fichier CSV.
 
@@ -130,3 +131,27 @@ def sauvegarder_mentions_csv(mentions: list[dict], chemin_csv: str, fieldnames: 
         for mention in mentions:
             writer.writerow(mention)
     print(f"Mentions sauvegardées dans le fichier {chemin_csv}")
+
+
+# Function to load paragraphs from the "contexte" column of a CSV file
+def load_paragraphs_from_csv(csv_file_path):
+    df = pd.read_csv(csv_file_path)
+    paragraphs = df['contexte'].dropna().tolist()
+    return paragraphs
+
+
+
+# Function to parse all responses and create a DataFrame
+def create_final_dataframe(df):
+    parsed_data = []
+    for _, row in df.iterrows():
+        paragraph = row['paragraph']
+        response = row['climate_related']
+        binary_response, subjects_list = parse_llm_response(response)
+        parsed_data.append({
+            "paragraph": paragraph,
+            "binary_response": binary_response,
+            "subjects": subjects_list
+        })
+    
+    return pd.DataFrame(parsed_data)
