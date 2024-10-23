@@ -199,7 +199,8 @@ def run_all_scripts():
     run_script_1()
     run_script_2()
     run_script_3()
-    run_script_4()
+    #    run_script_4()
+    run_script_5()
 
 
 if __name__ == "__main__":
@@ -230,6 +231,9 @@ if __name__ == "__main__":
             run_script_4()
         case "5":
             print("You chose Option 5")
+            run_script_5()
+        case "6":
+            print("You chose Option 6")
             run_all_scripts()
         case _:
             print("Invalid choice. Please choose a valid option.")
