@@ -110,6 +110,7 @@ def charger_embeddings_rapport(chemin_rapport_embeddings: str) -> tuple[list, li
         data = json.load(file)
     sections = [section['text'] for section in data]
     embeddings = [Settings.embed_model.get_text_embedding(section) for section in sections]
+    print(type(embeddings))
     return embeddings, sections
 
 
@@ -173,3 +174,32 @@ def create_final_dataframe(df: pd.DataFrame) -> pd.DataFrame:
         })
     
     return pd.DataFrame(parsed_data)
+
+
+# Charger les questions depuis le fichier CSV
+def charger_questions(chemin_csv):
+    df = pd.read_csv(chemin_csv)
+    return df
+
+
+# Sauvegarder les résultats RAG dans un fichier CSV
+def sauvegarder_mentions_csv(mentions, chemin_csv):
+    df_mentions = pd.DataFrame(mentions)
+    df_mentions.to_csv(chemin_csv, index=False)
+    print(f"Mentions sauvegardées dans le fichier {chemin_csv}")
+
+
+
+# Charger les paragraphes et les mentions du GIEC
+def charger_paragraphes_et_mentions(chemin_paragraphes_csv, chemin_mentions_csv):
+    paragraphes_df = pd.read_csv(chemin_paragraphes_csv)
+    mentions_df = pd.read_csv(chemin_mentions_csv)
+    return paragraphes_df, mentions_df
+
+
+# Sauvegarder les résultats d'évaluation
+def sauvegarder_resultats_evaluation(resultats, chemin_resultats_csv):
+    resultats.to_csv(chemin_resultats_csv, index=False)
+    print(f"Résultats d'évaluation sauvegardés dans {chemin_resultats_csv}")
+
+

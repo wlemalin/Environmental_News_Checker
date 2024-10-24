@@ -10,19 +10,23 @@ Ce script effectue plusieurs tâches liées au traitement de texte et à l'intel
 4. Vérification des faits avec un modèle LLM (Llama) : Génération de réponses basées sur les sections extraites du rapport en utilisant un modèle de type RAG (Retrieve-and-Generate).
 """
 
-import pandas as pd
 import nltk
+import pandas as pd
 from langchain import LLMChain, PromptTemplate
 from langchain.chains import LLMChain
 from langchain.llms import Ollama
-from langchain_ollama import OllamaLLM
 from llama_index.core import Settings
 from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 
 from file_utils import (charger_embeddings_rapport, charger_glossaire,
-                        load_text, save_to_csv, load_paragraphs_from_csv, create_final_dataframe)
-from llms import comparer_article_rapport_with_rag, configure_embeddings, analyze_paragraphs_parallel, create_prompt_template, generate_questions_parallel
+                        create_final_dataframe, load_paragraphs_from_csv,
+                        load_text, save_to_csv)
+from llms import (analyze_paragraphs_parallel,
+                  comparer_article_rapport_with_rag, configure_embeddings,
+                  create_prompt_template, generate_questions_parallel)
+from metrics import process_evaluation
 from pdf_processing import process_pdf_to_index
+from rag import rag_process
 from topic_classifier import keywords_for_each_chunck
 from txt_manipulation import decouper_en_phrases, pretraiter_article
 
@@ -92,7 +96,6 @@ def run_script_4():
 
     nltk.download('punkt')  # Download sentence tokenization model
 
-
     # Initialize the LLM (Ollama)
     llm = Ollama(model="llama3.2:3b-instruct-fp16")
 
@@ -120,14 +123,12 @@ def run_script_4():
     # Create the LLM chain
     llm_chain = LLMChain(prompt=prompt, llm=llm)
 
-
     # Load paragraphs from the "contexte" column of the CSV
     paragraphs = load_paragraphs_from_csv(file_path)
 
     # Analyze the paragraphs with Llama 3.2 in parallel
     analysis_results = analyze_paragraphs_parallel(paragraphs, llm_chain)
     analysis_results_df = pd.DataFrame(analysis_results)
-
 
     # Save the initial analysis results to a CSV file using save_to_csv
     chemin_resultats_csv = './IPCC_Answer_Based/climate_analysis_results.csv'
@@ -160,7 +161,8 @@ def run_script_5():
     output_path_questions = './IPCC_Answer_Based/final_climate_analysis_with_questions.csv'
 
     # Charger la base de données CSV contenant les paragraphes, la réponse binaire, et les thèmes
-    df = pd.read_csv('./IPCC_Answer_Based/final_climate_analysis_results_improved.csv')
+    df = pd.read_csv(
+        './IPCC_Answer_Based/final_climate_analysis_results_improved.csv')
 
     # Initialize the LLM (Ollama)
     llm = Ollama(model="llama3.2:3b-instruct-fp16")
@@ -168,9 +170,9 @@ def run_script_5():
     # Créer le template de prompt
     prompt = create_prompt_template()
 
-
     # Convertir la colonne 'binary_response' en entier (si elle est en format texte)
-    df['binary_response'] = pd.to_numeric(df['binary_response'], errors='coerce')
+    df['binary_response'] = pd.to_numeric(
+        df['binary_response'], errors='coerce')
 
     # Filtrer uniquement les paragraphes identifiés comme liés à l'environnement (réponse binaire '1')
     df_environment = df[df['binary_response'] == 1]
@@ -190,52 +192,19 @@ def run_script_5():
 
 
 def run_script_6():
-    """
-    Sixième Partie : RAG (Retrieve-and-Generate) avec Llama3.2.
-    Utilise un modèle LLM pour générer des réponses à partir de sections pertinentes d'un rapport.
-    Sauvegarde les résultats dans un fichier CSV.
-    """
-    chemin_cleaned_article = './IPCC_Answer_Based/Nettoye_Articles/_ _ C_est plus confortable de se dire que ce n_est pas si grave __cleaned_cleaned.txt'
-    chemin_resultats_csv = './IPCC_Answer_Based/mentions_rag_extraites.csv'
-    chemin_rapport_embeddings = './IPCC_Answer_Based/rapport_indexed.json'
+    chemin_questions_csv = "/Users/mateodib/Desktop/Environmental_News_Checker-main/final_climate_analysis_with_questions.csv"
+    chemin_rapport_embeddings = "/Users/mateodib/Desktop/IPCC_Answer_Based/rapport_indexed.json"
+    chemin_resultats_csv = "/Users/mateodib/Desktop/Environmental_News_Checker-main/rag_results.csv"
+    rag_process(chemin_questions_csv,
+                chemin_rapport_embeddings, chemin_resultats_csv)
 
-    # Configurer les embeddings (Ollama ou HuggingFace)
-    configure_embeddings()
 
-    # Charger l'article nettoyé
-    texte_nettoye = load_text(chemin_cleaned_article)
-
-    # Découper l'article en phrases
-    phrases = decouper_en_phrases(texte_nettoye)
-
-    # Charger les embeddings du rapport
-    embeddings_rapport, sections_rapport = charger_embeddings_rapport(
-        chemin_rapport_embeddings)
-
-    # Définir le template de prompt pour la génération de réponses LLM
-    prompt_template = """
-    You are tasked with answering the following question based on the provided sections from the IPCC report.
-    Ensure that your response is factual and based on the retrieved sections.
-    
-    Question: {question}
-    Relevant Sections: {consolidated_text}
-    
-    Answer:
-    """
-    prompt = PromptTemplate(template=prompt_template, input_variables=[
-                            "question", "consolidated_text"])
-
-    # Créer la chaîne LLM avec Ollama
-    llm = OllamaLLM(model="llama3.2:3b-instruct-fp16")
-    llm_chain = LLMChain(prompt=prompt, llm=llm)
-
-    # Comparer l'article au rapport avec RAG et parallélisation
-    mentions = comparer_article_rapport_with_rag(
-        phrases, embeddings_rapport, sections_rapport, llm_chain)
-
-    # Sauvegarder les résultats
-    save_to_csv(mentions, chemin_resultats_csv, [
-        "phrase", "retrieved_sections", "generated_answer"])
+def run_script_7():
+    chemin_paragraphes_csv = "/Users/mateodib/Desktop/Environmental_News_Checker-main/final_climate_analysis_with_questions.csv"
+    chemin_mentions_csv = "/Users/mateodib/Desktop/Environmental_News_Checker-main/rag_results.csv"
+    chemin_resultats_csv = "/Users/mateodib/Desktop/Environmental_News_Checker-main/exactitude_biais_ton_results.csv"
+    process_evaluation(chemin_paragraphes_csv,
+                       chemin_mentions_csv, chemin_resultats_csv)
 
 
 def run_all_scripts():
@@ -248,6 +217,8 @@ def run_all_scripts():
     run_script_4()
     run_script_5()
     run_script_6()
+    run_script_7()
+
 
 if __name__ == "__main__":
     """
@@ -259,8 +230,9 @@ if __name__ == "__main__":
     print("3. Topic Recognition")
     print("4. Check for IPCC references")
     print("5. Create question for each chunk")
-    print("6. Run RAG")
-    print("7. Run all scripts")
+    print("6. Run RAG on questions")
+    print("7. Get metrics")
+    print("8. Run all scripts")
     choice = input("Enter your choice: ")
 
     match choice:
@@ -275,15 +247,18 @@ if __name__ == "__main__":
             run_script_3()
         case "4":
             print("You chose Option 4")
-            run_script_6()
+            run_script_4()
         case "5":
             print("You chose Option 5")
-            run_script_4()
+            run_script_5()
         case "6":
             print("You chose Option 6")
-            run_script_5()
+            run_script_6()
         case "7":
             print("You chose Option 7")
+            run_script_7()
+        case "8":
+            print("You chose option 8.")
             run_all_scripts()
         case _:
             print("Invalid choice. Please choose a valid option.")

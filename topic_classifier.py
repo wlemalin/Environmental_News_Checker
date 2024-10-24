@@ -11,12 +11,6 @@ Fonctionnalités principales :
 
 """
 
-import nltk
-import numpy as np
-from llama_index.core import Settings
-from sentence_transformers import util
-
-
 # Fonction pour détecter les termes du glossaire dans une phrase
 def detect_glossary_terms(phrase: str, termes_glossaire: list[str]) -> list[str]:
     """
@@ -46,11 +40,15 @@ def generate_context_windows(phrases: list[str], window_size: int = 3) -> list[d
     """
     windows = []
     for i in range(0, len(phrases)):
-        context_window = " ".join(phrases[max(0, i - window_size):min(i + window_size + 1, len(phrases))])
-        windows.append({"context": context_window, "current_phrase": phrases[i]})
+        context_window = " ".join(
+            phrases[max(0, i - window_size):min(i + window_size + 1, len(phrases))])
+        windows.append({"context": context_window,
+                       "current_phrase": phrases[i]})
     return windows
 
 # Fonction pour comparer les phrases d'un article avec les sections d'un rapport en utilisant des fenêtres contextuelles
+
+
 def keywords_for_each_chunck(phrases_article: list[str], termes_glossaire: list[str], definitions_glossaire: list[str], window_size: int = 3) -> list[dict]:
     """
     Compare les phrases de l'article avec les sections du rapport en générant des fenêtres contextuelles et en utilisant les embeddings.
@@ -73,15 +71,17 @@ def keywords_for_each_chunck(phrases_article: list[str], termes_glossaire: list[
     # Générer les embeddings pour les fenêtres contextuelles
     print("Génération des embeddings des fenêtres contextuelles...")
     # Itérer à travers les sections et trouver les sections pertinentes
-    for i in range(0,len(context_windows)):
-            glossary_terms = detect_glossary_terms(context_windows[i]["current_phrase"], termes_glossaire)
-            mentions.append({
-                # "article_title":
-                "phrase": context_windows[i]["current_phrase"],  # Récupération de la phrase
-                "contexte": context_windows[i]["context"],
-                "glossary_terms": glossary_terms,
-                # Ajouter les définitions correspondantes aux termes du glossaire détectés
-                "definitions": [definitions_glossaire[termes_glossaire.index(term)] for term in glossary_terms if term in termes_glossaire]
-            })
+    for i in range(0, len(context_windows)):
+        glossary_terms = detect_glossary_terms(
+            context_windows[i]["current_phrase"], termes_glossaire)
+        mentions.append({
+            # "article_title":
+            # Récupération de la phrase
+            "phrase": context_windows[i]["current_phrase"],
+            "contexte": context_windows[i]["context"],
+            "glossary_terms": glossary_terms,
+            # Ajouter les définitions correspondantes aux termes du glossaire détectés
+            "definitions": [definitions_glossaire[termes_glossaire.index(term)] for term in glossary_terms if term in termes_glossaire]
+        })
     print(f"{len(mentions)} mentions trouvées.")
     return mentions

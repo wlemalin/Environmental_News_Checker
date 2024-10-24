@@ -11,9 +11,11 @@ Fonctionnalités principales :
 """
 
 from concurrent.futures import ThreadPoolExecutor  # Pour la parallélisation
+
 import numpy as np
 import pandas as pd
 import tqdm
+from langchain import PromptTemplate
 from llama_index.core import Settings
 from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 from llama_index.embeddings.ollama import OllamaEmbedding
@@ -30,9 +32,11 @@ def configure_embeddings(use_ollama: bool = False) -> None:
         use_ollama (bool): Utiliser OllamaEmbedding si True, sinon HuggingFaceEmbedding.
     """
     if use_ollama:
-        Settings.embed_model = OllamaEmbedding(model_name="llama3.2:3b-instruct-fp16")
+        Settings.embed_model = OllamaEmbedding(
+            model_name="llama3.2:3b-instruct-fp16")
     else:
-        Settings.embed_model = HuggingFaceEmbedding(model_name="BAAI/bge-small-en-v1.5")
+        Settings.embed_model = HuggingFaceEmbedding(
+            model_name="BAAI/bge-small-en-v1.5")
 
 
 # Fonction pour générer des réponses à l'aide de LLMChain
@@ -61,7 +65,8 @@ def rag_answer_generation_with_llmchain(question: str, relevant_sections: list[s
     response = llm_chain.invoke(inputs)  # Mise à jour de __call__ à invoke
 
     # Extraire la réponse générée à partir de la réponse
-    generated_answer = response['text'] if isinstance(response, dict) and "text" in response else response
+    generated_answer = response['text'] if isinstance(
+        response, dict) and "text" in response else response
     return generated_answer.strip()
 
 
@@ -89,7 +94,8 @@ def comparer_article_rapport_with_rag(phrases_article: list[str], embeddings_rap
 
     with ThreadPoolExecutor(max_workers=12) as executor:
         # Génération parallèle des embeddings
-        futures = [executor.submit(Settings.embed_model.get_text_embedding, phrase) for phrase in phrases_article]
+        futures = [executor.submit(
+            Settings.embed_model.get_text_embedding, phrase) for phrase in phrases_article]
 
         # Utilisation de tqdm pour afficher la progression
         for future in tqdm(futures, desc="Génération des Embeddings", total=len(futures)):
@@ -113,7 +119,8 @@ def comparer_article_rapport_with_rag(phrases_article: list[str], embeddings_rap
 
         # Utiliser RAG (Retrieve-then-Generate) avec LLMChain
         question = phrases_article[i]
-        generated_answer = rag_answer_generation_with_llmchain(question, top_k_sections, llm_chain)
+        generated_answer = rag_answer_generation_with_llmchain(
+            question, top_k_sections, llm_chain)
 
         # Stocker les résultats
         mentions.append({
@@ -124,7 +131,6 @@ def comparer_article_rapport_with_rag(phrases_article: list[str], embeddings_rap
 
     print(f"{len(mentions)} mentions trouvées.")
     return mentions
-
 
 
 # Function to analyze a paragraph with Llama 3.2
@@ -146,7 +152,6 @@ def analyze_paragraph_with_llm(paragraph: str, llm_chain) -> str:
     return response.strip()
 
 
-
 # Function to handle the analysis of paragraphs in parallel
 def analyze_paragraphs_parallel(paragraphs: list[str], llm_chain) -> list[dict[str, str]]:
     """
@@ -163,19 +168,20 @@ def analyze_paragraphs_parallel(paragraphs: list[str], llm_chain) -> list[dict[s
     # Use ThreadPoolExecutor for parallel processing
     with concurrent.futures.ThreadPoolExecutor() as executor:
         # Create a task for each paragraph
-        futures = {executor.submit(analyze_paragraph_with_llm, paragraph, llm_chain): paragraph for paragraph in paragraphs if len(paragraph.strip()) > 0}
+        futures = {executor.submit(analyze_paragraph_with_llm, paragraph, llm_chain)
+                                   : paragraph for paragraph in paragraphs if len(paragraph.strip()) > 0}
         # Iterate over results as they complete
         for future in tqdm(concurrent.futures.as_completed(futures), total=len(futures), desc="Analyzing paragraphs"):
             paragraph = futures[future]
             try:
                 analysis = future.result()
-                results.append({"paragraph": paragraph, "climate_related": analysis})
+                results.append(
+                    {"paragraph": paragraph, "climate_related": analysis})
                 # Display the response after each analysis
                 print(f"Paragraph:\n{paragraph}\nLLM Response: {analysis}\n")
             except Exception as exc:
                 print(f"Error analyzing paragraph: {paragraph} - {exc}")
     return results
-
 
 
 def create_prompt_template() -> PromptTemplate:
@@ -209,7 +215,6 @@ def create_prompt_template() -> PromptTemplate:
     return PromptTemplate(template=prompt_template, input_variables=["paragraph", "themes"])
 
 
-
 # Fonction pour générer une question avec Llama3.2
 def generate_question(paragraph: str, themes: list[str], llm_chain) -> str:
     """
@@ -224,12 +229,16 @@ def generate_question(paragraph: str, themes: list[str], llm_chain) -> str:
         str: The generated question.
     """
     inputs = {"paragraph": paragraph, "themes": ', '.join(themes)}
-    response = llm_chain.invoke(inputs)  # Utilisation de invoke pour garantir une invocation appropriée
+    # Utilisation de invoke pour garantir une invocation appropriée
+    response = llm_chain.invoke(inputs)
     if isinstance(response, dict) and "text" in response:
         return response["text"].strip()
     return response.strip()
 
 # Fonction pour traiter les questions en parallèle
+
+
+# type: (pd.DataFrame, Any) -> pd.DataFrame
 def generate_questions_parallel(df: pd.DataFrame, llm_chain) -> pd.DataFrame:
     """
     Generate questions for multiple paragraphs in parallel.
@@ -242,11 +251,12 @@ def generate_questions_parallel(df: pd.DataFrame, llm_chain) -> pd.DataFrame:
         DataFrame: A DataFrame containing the original rows with generated questions.
     """
     results = []
-    
+
     # Utilisation de ThreadPoolExecutor pour le traitement parallèle
     with concurrent.futures.ThreadPoolExecutor() as executor:
-        futures = {executor.submit(generate_question, row['paragraph'], row['subjects'].split(', '), llm_chain): row for idx, row in df.iterrows() if row['binary_response'] == 1}
-        
+        futures = {executor.submit(generate_question, row['paragraph'], row['subjects'].split(
+            ', '), llm_chain): row for idx, row in df.iterrows() if row['binary_response'] == 1}
+
         # Parcourir les résultats à mesure qu'ils sont terminés
         for future in tqdm(concurrent.futures.as_completed(futures), total=len(futures), desc="Generating questions"):
             row = futures[future]
@@ -255,7 +265,78 @@ def generate_questions_parallel(df: pd.DataFrame, llm_chain) -> pd.DataFrame:
                 row['question'] = question
                 results.append(row)
             except Exception as exc:
-                print(f"Error generating question for paragraph: {row['paragraph']} - {exc}")
-    
+                print(
+                    f"Error generating question for paragraph: {row['paragraph']} - {exc}")
+
     return pd.DataFrame(results)
 
+
+# Prompts pour chaque LLM (exactitude, biais, ton)
+def creer_prompts_metrics():
+    prompt_template_exactitude = """
+    Vous êtes chargé de comparer un paragraphe d'un article de presse aux informations officielles du rapport du GIEC. Votre tâche consiste à évaluer l'exactitude des informations présentées dans ce paragraphe, en vous basant sur les sections du rapport du GIEC fournies. 
+
+    **Contexte** : Le paragraphe de l'article peut contenir des informations sur le changement climatique, les impacts environnementaux, ou d'autres sujets liés au climat. Vous devez juger si ces informations correspondent ou non aux faits et conclusions du rapport du GIEC.
+
+    **Objectif** : 
+    1. Évaluer si le contenu du paragraphe est exact ou non en fonction des mentions spécifiques du rapport du GIEC.
+    2. Si les informations sont partiellement exactes, expliquez les points précis où elles diffèrent ou nécessitent des nuances.
+
+    **Tâche** : Donnez une réponse binaire (Exact ou Non_exact) et justifiez votre évaluation en listant des éléments précis issus du rapport du GIEC.
+
+    **Format de la réponse** :
+    1. **Réponse binaire** : Exact ou Non_exact.
+    2. **Justifications** : Listez les éléments clés qui soutiennent votre évaluation (faites référence aux sections du rapport du GIEC fournies). Si l'information est nuancée, mentionnez clairement les divergences.
+
+    **Paragraphe de l'article** :
+    {paragraphe}
+
+    **Mentions du rapport du GIEC** :
+    {mentions}
+    """
+
+    prompt_template_biais = """
+    Vous êtes chargé d'analyser un paragraphe d'un article de presse pour détecter tout biais potentiel par rapport aux informations officielles du rapport du GIEC. 
+
+    **Contexte** : Le paragraphe peut présenter les informations de manière exagérée, minimisée, ou neutre par rapport aux données du rapport du GIEC. Votre tâche consiste à identifier toute forme de biais et à la décrire.
+
+    **Objectif** : 
+    1. Déterminer si le paragraphe amplifie, minimise, ou présente de manière neutre les faits du rapport du GIEC.
+    2. Justifier votre réponse en vous basant sur les informations des sections du rapport du GIEC.
+
+    **Tâche** : Donnez une évaluation du biais (Exagéré, Minimisé, Neutre) et justifiez votre réponse avec des références aux sections pertinentes du rapport du GIEC.
+
+    **Format de la réponse** :
+    1. **Type de biais** : Exagéré, Minimisé, ou Neutre.
+    2. **Justifications** : Détaillez les éléments spécifiques qui justifient votre évaluation du biais, en vous basant sur le contenu du rapport du GIEC.
+
+    **Paragraphe de l'article** :
+    {paragraphe}
+
+    **Mentions du rapport du GIEC** :
+    {mentions}
+    """
+
+    prompt_template_ton = """
+    Vous êtes chargé d'analyser le ton d'un paragraphe d'un article de presse en le comparant aux informations du rapport du GIEC. 
+
+    **Contexte** : Le paragraphe peut utiliser un ton alarmiste, minimiser les faits, ou présenter les informations de manière factuelle et neutre. Votre tâche est de déterminer quel ton est utilisé et de justifier votre réponse en vous appuyant sur les sections pertinentes du rapport du GIEC.
+
+    **Objectif** : 
+    1. Déterminer le ton général du paragraphe : alarmiste, minimisant, factuel, ou neutre.
+    2. Justifier votre évaluation en comparant le paragraphe aux informations du rapport du GIEC.
+
+    **Tâche** : Donnez une évaluation du ton (Alarmiste, Minimisant, Neutre, Factuel) et justifiez votre réponse en comparant les faits du paragraphe avec les informations du rapport.
+
+    **Format de la réponse** :
+    1. **Évaluation du ton** : Alarmiste, Minimisant, Neutre, ou Factuel.
+    2. **Justifications** : Expliquez les éléments spécifiques du paragraphe qui supportent votre évaluation du ton, en les comparant aux sections du rapport du GIEC.
+
+    **Paragraphe de l'article** :
+    {paragraphe}
+
+    **Mentions du rapport du GIEC** :
+    {mentions}
+    """
+
+    return prompt_template_exactitude, prompt_template_biais, prompt_template_ton
