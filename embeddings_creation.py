@@ -36,6 +36,7 @@ def charger_embeddings_rapport(chemin_rapport_json):
 # Embedding function to efficiently process multiple texts
 def embed_texts(texts, embed_model):
     # Ensure embedding is done on CPU
-    embeddings = embed_model.encode(
-        texts, convert_to_tensor=True, device='cpu')
+    embeddings = embed_model.encode(texts, convert_to_tensor=True, device='cpu')
     return embeddings
+
+

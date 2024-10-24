@@ -17,7 +17,8 @@ from concurrent.futures import ThreadPoolExecutor  # Pour la parallélisation
 import numpy as np
 import pandas as pd
 import tqdm
-from langchain import PromptTemplate
+from langchain import LLMChain, PromptTemplate
+from langchain.llms import Ollama
 from llama_index.core import Settings
 from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 from llama_index.embeddings.ollama import OllamaEmbedding
@@ -56,24 +57,19 @@ def rag_answer_generation_with_llmchain(question: str, relevant_sections: list[s
     """
     # Combiner les sections pertinentes en un seul contexte
     context = " ".join(relevant_sections)
-
-    # Préparer les entrées pour LLMChain
+    
     inputs = {
         "question": question,
         "consolidated_text": context
     }
-
-    # Générer la réponse en utilisant LLMChain
-    response = llm_chain.invoke(inputs)  # Mise à jour de __call__ à invoke
-
-    # Extraire la réponse générée à partir de la réponse
-    generated_answer = response['text'] if isinstance(
-        response, dict) and "text" in response else response
+    
+    response = llm_chain.invoke(inputs)
+    
+    generated_answer = response['text'] if isinstance(response, dict) and "text" in response else response
     return generated_answer.strip()
 
-
 # Fonction pour comparer les phrases d'un article avec les sections d'un rapport
-def comparer_article_rapport_with_rag(phrases_article: list[str], embeddings_rapport: np.ndarray, sections_rapport: list[str], llm_chain, seuil_similarite: float = 0.5, top_k: int = 3) -> list[dict]:
+def comparer_article_rapport_with_rag(phrases_article: list[str], embeddings_rapport: np.ndarray, sections_rapport: list[str], llm_chain,  top_k: int = 3) -> list[dict]:
     """
     Compare les phrases d'un article avec les sections d'un rapport en utilisant les embeddings et RAG.
 
@@ -166,60 +162,9 @@ def create_prompt_template() -> PromptTemplate:
     return PromptTemplate(template=prompt_template, input_variables=["paragraph", "themes"])
 
 
-# Fonction pour générer une question avec Llama3.2
-def generate_question(paragraph: str, themes: list[str], llm_chain) -> str:
-    """
-    Generate a verification question using Llama3.2 based on a given paragraph and themes.
-
-    Args:
-        paragraph (str): The paragraph from which to generate the question.
-        themes (list of str): Themes related to the paragraph.
-        llm_chain (LLMChain): The language model chain to use for generation.
-
-    Returns:
-        str: The generated question.
-    """
-    inputs = {"paragraph": paragraph, "themes": ', '.join(themes)}
-    # Utilisation de invoke pour garantir une invocation appropriée
-    response = llm_chain.invoke(inputs)
-    if isinstance(response, dict) and "text" in response:
-        return response["text"].strip()
-    return response.strip()
 
 # Fonction pour traiter les questions en parallèle
 
-
-# type: (pd.DataFrame, Any) -> pd.DataFrame
-def generate_questions_parallel(df: pd.DataFrame, llm_chain) -> pd.DataFrame:
-    """
-    Generate questions for multiple paragraphs in parallel.
-
-    Args:
-        df (DataFrame): A pandas DataFrame containing paragraphs and their corresponding themes.
-        llm_chain (LLMChain): The language model chain to use for generation.
-
-    Returns:
-        DataFrame: A DataFrame containing the original rows with generated questions.
-    """
-    results = []
-
-    # Utilisation de ThreadPoolExecutor pour le traitement parallèle
-    with concurrent.futures.ThreadPoolExecutor() as executor:
-        futures = {executor.submit(generate_question, row['paragraph'], row['subjects'].split(
-            ', '), llm_chain): row for idx, row in df.iterrows() if row['binary_response'] == 1}
-
-        # Parcourir les résultats à mesure qu'ils sont terminés
-        for future in tqdm(concurrent.futures.as_completed(futures), total=len(futures), desc="Generating questions"):
-            row = futures[future]
-            try:
-                question = future.result()
-                row['question'] = question
-                results.append(row)
-            except Exception as exc:
-                print(
-                    f"Error generating question for paragraph: {row['paragraph']} - {exc}")
-
-    return pd.DataFrame(results)
 
 
 # Prompts pour chaque LLM (exactitude, biais, ton)
@@ -414,3 +359,66 @@ def parsed_responses(df):
         })
 
     return pd.DataFrame(parsed_data)
+
+
+def create_questions_llm(model_name="llama3.2:3b-instruct-fp16"):
+    """
+    Initialise le modèle LLM et crée une LLMChain.
+    """
+    llm = Ollama(model=model_name)
+    prompt_template = """
+    Vous êtes chargé de formuler une **question précise** pour vérifier les informations mentionnées dans un article de presse en consultant directement les rapports du GIEC (Groupe d'experts intergouvernemental sur l'évolution du climat).
+
+    Cette question sera utilisée dans un système de récupération d'information (RAG) pour extraire les sections pertinentes des rapports du GIEC et comparer les informations des rapports avec celles de l'article de presse.
+
+    **Objectif** : La question doit permettre de vérifier si les informations fournies dans la phrase de l'article sont corroborées ou contestées par les preuves scientifiques dans les rapports du GIEC.
+
+    **Instructions** :
+
+    1. Analysez la phrase et son contexte pour identifier les affirmations clés ou les informations à vérifier.
+    2. Formulez une **question claire et spécifique** orientée vers la vérification de ces affirmations ou informations à partir des rapports du GIEC.
+    3. La question doit être **directement vérifiable** dans les rapports du GIEC via un système RAG.
+    4. **IMPORTANT** : Répondez uniquement avec la question, sans ajouter d'explications ou de contexte supplémentaire.
+
+    Phrase : {current_phrase}
+
+    Contexte : {context}
+
+    Générez uniquement la **question** spécifique qui permettrait de vérifier les informations mentionnées dans cette phrase en consultant les rapports du GIEC via un système de récupération d'information (RAG).
+    """
+    prompt = PromptTemplate(template=prompt_template, input_variables=[
+                            "current_phrase", "context"])
+    return LLMChain(prompt=prompt, llm=llm)
+
+
+# Fonction pour générer une question avec Llama3.2
+def generate_question(current_phrase, context, llm_chain):
+    inputs = {"current_phrase": current_phrase, "context": context}
+    # Utilisation de invoke pour garantir une invocation appropriée
+    response = llm_chain.invoke(inputs)
+    if isinstance(response, dict) and "text" in response:
+        return response["text"].strip()
+    return response.strip()
+
+
+# Fonction pour traiter les questions en parallèle
+def generate_questions_parallel(df, llm_chain):
+    results = []
+
+    # Utilisation de ThreadPoolExecutor pour le traitement parallèle
+    with concurrent.futures.ThreadPoolExecutor(max_workers=14) as executor:
+        futures = {executor.submit(generate_question, row['current_phrase'], row['context'],
+                                   llm_chain): row for _, row in df.iterrows() if row['binary_response'] == '1'}
+
+        # Parcourir les résultats à mesure qu'ils sont terminés
+        for future in tqdm(concurrent.futures.as_completed(futures), total=len(futures), desc="Generating questions"):
+            row = futures[future]
+            try:
+                question = future.result()
+                row['question'] = question
+                results.append(row)
+            except Exception as exc:
+                print(
+                    f"Error generating question for phrase: {row['current_phrase']} - {exc}")
+
+    return pd.DataFrame(results)

@@ -18,17 +18,16 @@ from langchain.llms import Ollama
 from llama_index.core import Settings
 from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 
-from txt_manipulation import decouper_en_phrases, pretraiter_article
-from pdf_processing import process_pdf_to_index
-from topic_classifier import generate_context_windows
-from rag import rag_process
-from metrics import process_evaluation
-
 from file_utils import (charger_glossaire, load_and_group_text, load_text,
                         save_results_to_csv, save_to_csv)
-
-from llms import (analyze_paragraphs_parallel, create_prompt_template,
+from llms import (analyze_paragraphs_parallel, create_questions_llm,
                   generate_questions_parallel, parsed_responses)
+from metrics import process_evaluation
+from pdf_processing import process_pdf_to_index
+from rag import rag_process
+from topic_classifier import generate_context_windows, keywords_for_each_chunk
+from txt_manipulation import decouper_en_phrases, pretraiter_article
+
 
 def run_script_1():
     """
@@ -76,7 +75,7 @@ def run_script_3():
     phrases = decouper_en_phrases(texte_nettoye)
 
     # Comparer l'article avec le rapport
-    mentions = keywords_for_each_chunck(
+    mentions = keywords_for_each_chunk(
         phrases, termes_glossaire, definitions_glossaire)
 
     # Sauvegarder les correspondances dans un fichier CSV
@@ -147,41 +146,24 @@ def run_script_4():
 
 
 def run_script_5():
-    """
-    Cinquième Partie : Génération de questions pour les paragraphes liés à l'environnement.
-    Utilise un modèle LLM pour générer des questions spécifiques pour vérifier les informations contenues
-    dans des paragraphes classés comme étant liés à l'environnement.
-    Les questions sont ensuite sauvegardées dans un fichier CSV.
-    """
-    output_path_questions = './IPCC_Answer_Based/final_climate_analysis_with_questions.csv'
-
-    # Charger la base de données CSV contenant les paragraphes, la réponse binaire, et les thèmes
+    # Charger la base de données CSV contenant les phrases, la réponse binaire, et le contexte
     df = pd.read_csv(
-        './IPCC_Answer_Based/final_climate_analysis_results_improved.csv')
+        "/Users/mateodib/Desktop/Environmental_News_Checker-main/final_climate_analysis_results_improved.csv")
 
-    # Initialize the LLM (Ollama)
-    llm = Ollama(model="llama3.2:3b-instruct-fp16")
+    # Convertir la colonne 'binary_response' en texte (si elle est en format texte)
+    df['binary_response'] = df['binary_response'].astype(str)
 
-    # Créer le template de prompt
-    prompt = create_prompt_template()
-
-    # Convertir la colonne 'binary_response' en entier (si elle est en format texte)
-    df['binary_response'] = pd.to_numeric(
-        df['binary_response'], errors='coerce')
-
-    # Filtrer uniquement les paragraphes identifiés comme liés à l'environnement (réponse binaire '1')
-    df_environment = df[df['binary_response'] == 1]
-
-    # Vérifier le DataFrame filtré
-    print(df_environment)
+    # Filtrer uniquement les phrases identifiées comme liées à l'environnement (réponse binaire '1')
+    df_environment = df[df['binary_response'] == '1']
 
     # Créer la LLMChain pour la génération des questions
-    llm_chain = LLMChain(prompt=prompt, llm=llm)
+    llm_chain = create_questions_llm()
 
-    # Générer les questions pour les paragraphes liés à l'environnement
+    # Générer les questions pour les phrases liées à l'environnement
     questions_df = generate_questions_parallel(df_environment, llm_chain)
 
     # Sauvegarder les résultats dans un nouveau fichier CSV
+    output_path_questions = "/Users/mateodib/Desktop/Environmental_News_Checker-main/final_climate_analysis_with_questions.csv"
     questions_df.to_csv(output_path_questions, index=False)
     print(f"Questions generated and saved to {output_path_questions}")
 
@@ -190,8 +172,7 @@ def run_script_6():
     chemin_questions_csv = "/Users/mateodib/Desktop/Environmental_News_Checker-main/final_climate_analysis_with_questions.csv"
     chemin_rapport_embeddings = "/Users/mateodib/Desktop/IPCC_Answer_Based/rapport_indexed.json"
     chemin_resultats_csv = "/Users/mateodib/Desktop/Environmental_News_Checker-main/rag_results.csv"
-    rag_process(chemin_questions_csv,
-                chemin_rapport_embeddings, chemin_resultats_csv)
+    rag_process(chemin_questions_csv, chemin_rapport_embeddings, chemin_resultats_csv)
 
 
 def run_script_7():

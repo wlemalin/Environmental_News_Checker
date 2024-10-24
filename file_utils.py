@@ -220,3 +220,5 @@ def save_results_to_csv(results, output_path="climate_analysis_results.csv"):
     df.to_csv(output_path, index=False)
     print(f"Results saved to {output_path}")
 
+
+
