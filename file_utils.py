@@ -11,6 +11,7 @@ Fonctionnalités principales :
 
 """
 
+from nltk.tokenize import sent_tokenize
 import csv
 import json
 import os
@@ -202,4 +203,20 @@ def sauvegarder_resultats_evaluation(resultats, chemin_resultats_csv):
     resultats.to_csv(chemin_resultats_csv, index=False)
     print(f"Résultats d'évaluation sauvegardés dans {chemin_resultats_csv}")
 
+
+
+# Fonction pour lire un fichier local et créer des paragraphes toutes les 4 phrases
+def load_and_group_text(file_path):
+    with open(file_path, 'r', encoding='utf-8') as f:
+        text = f.read()
+    sentences = sent_tokenize(text)  # Divise le texte en phrases
+    return sentences
+
+
+
+# Sauvegarder les résultats dans un fichier CSV
+def save_results_to_csv(results, output_path="climate_analysis_results.csv"):
+    df = pd.DataFrame(results)
+    df.to_csv(output_path, index=False)
+    print(f"Results saved to {output_path}")
 

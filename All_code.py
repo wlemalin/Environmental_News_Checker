@@ -18,18 +18,17 @@ from langchain.llms import Ollama
 from llama_index.core import Settings
 from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 
-from file_utils import (charger_embeddings_rapport, charger_glossaire,
-                        create_final_dataframe, load_paragraphs_from_csv,
-                        load_text, save_to_csv)
-from llms import (analyze_paragraphs_parallel,
-                  comparer_article_rapport_with_rag, configure_embeddings,
-                  create_prompt_template, generate_questions_parallel)
-from metrics import process_evaluation
-from pdf_processing import process_pdf_to_index
-from rag import rag_process
-from topic_classifier import keywords_for_each_chunck
 from txt_manipulation import decouper_en_phrases, pretraiter_article
+from pdf_processing import process_pdf_to_index
+from topic_classifier import generate_context_windows
+from rag import rag_process
+from metrics import process_evaluation
 
+from file_utils import (charger_glossaire, load_and_group_text, load_text,
+                        save_results_to_csv, save_to_csv)
+
+from llms import (analyze_paragraphs_parallel, create_prompt_template,
+                  generate_questions_parallel, parsed_responses)
 
 def run_script_1():
     """
@@ -86,15 +85,7 @@ def run_script_3():
 
 
 def run_script_4():
-    """
-    Quatrième Partie : Vérification des mentions au GIEC dans un article.
-    Utilise un LLM pour analyser chaque paragraphe d'un article de presse afin d'identifier s'il mentionne le climat,
-    et pour lister tous les sujets abordés. Les résultats sont sauvegardés dans un fichier CSV.
-    """
-    # Path to the CSV file
-    file_path = './IPCC_Answer_Based/mentions_extraites.csv'
-
-    nltk.download('punkt')  # Download sentence tokenization model
+    nltk.download('punkt')  # Téléchargez le modèle de tokenisation des phrases
 
     # Initialize the LLM (Ollama)
     llm = Ollama(model="llama3.2:3b-instruct-fp16")
@@ -102,53 +93,57 @@ def run_script_4():
     # Define the improved prompt template for LLM climate analysis in French with detailed instructions
     prompt_template = """
     Vous êtes un expert chargé d'identifier tous les sujets abordés dans le texte suivant, qu'ils soient ou non liés à l'environnement, au changement climatique ou au réchauffement climatique.
-
-    Texte : {paragraph}
-
+    
+    Phrase : {current_phrase}
+    context : {context}
+    
     1. Si le texte mentionne de près ou de loin l'environnement, le changement climatique, le réchauffement climatique, ou des organisations, événements ou accords liés à ces sujets (par exemple le GIEC, les conférences COP, les accords de Paris, etc.), répondez '1'. Sinon, répondez '0'.
     2. Listez **tous** les sujets abordés dans le texte, y compris ceux qui ne sont pas liés à l'environnement ou au climat.
-
+    
     Format de réponse attendu :
     - Réponse binaire (0 ou 1) : [Réponse]
     - Liste des sujets abordés : [Sujet 1, Sujet 2, ...]
-
+    
     Exemple de réponse :
     - Réponse binaire (0 ou 1) : 1
     - Liste des sujets abordés : [Incendies, gestion des forêts, réchauffement climatique, économie locale, GIEC]
     """
 
-    prompt = PromptTemplate(template=prompt_template,
-                            input_variables=["paragraph"])
+    prompt = PromptTemplate(template=prompt_template, input_variables=[
+                            "current_phrase", "context"])
 
     # Create the LLM chain
     llm_chain = LLMChain(prompt=prompt, llm=llm)
 
-    # Load paragraphs from the "contexte" column of the CSV
-    paragraphs = load_paragraphs_from_csv(file_path)
+    # Chemin vers le fichier texte
+    file_path = "/Users/mateodib/Desktop/IPCC_Answer_Based/Nettoye_Articles/_ _ C_est plus confortable de se dire que ce n_est pas si grave __cleaned_cleaned.txt"
 
-    # Analyze the paragraphs with Llama 3.2 in parallel
-    analysis_results = analyze_paragraphs_parallel(paragraphs, llm_chain)
+    # Charger et regrouper le texte en phrases
+    sentences = load_and_group_text(file_path)
+
+    splitted_text = generate_context_windows(sentences)
+
+    # Analyser les paragraphes avec Llama 3.2 en parallèle
+    analysis_results = analyze_paragraphs_parallel(splitted_text, llm_chain)
+
+    # Sauvegarder les résultats dans un fichier CSV
+    save_results_to_csv(
+        analysis_results, output_path="climate_analysis_results.csv")
+
+    # Conversion de la liste en DataFrame
     analysis_results_df = pd.DataFrame(analysis_results)
 
-    # Save the initial analysis results to a CSV file using save_to_csv
-    chemin_resultats_csv = './IPCC_Answer_Based/climate_analysis_results.csv'
-    fieldnames = ["paragraph", "climate_related"]
-    save_to_csv(analysis_results, chemin_resultats_csv, fieldnames)
+    # Appliquer la méthode de parsing au DataFrame
+    parsed_df_improved = parsed_responses(analysis_results_df)
 
-    # Parse the analysis results to create a final DataFrame
-    parsed_df = create_final_dataframe(analysis_results_df)
+    # Sauvegarder le DataFrame avec les résultats parsés
+    output_path_improved = "/Users/mateodib/Desktop/Environmental_News_Checker-main/final_climate_analysis_results_improved.csv"
+    parsed_df_improved['subjects'] = parsed_df_improved['subjects'].apply(
+        lambda x: ', '.join(x))
+    parsed_df_improved.to_csv(output_path_improved, index=False)
 
-    # Process the 'subjects' column to convert lists to strings
-    parsed_df['subjects'] = parsed_df['subjects'].apply(
-        lambda x: ', '.join(x) if isinstance(x, list) else x)
-
-    # Convert the DataFrame to a list of dictionaries for saving
-    mentions = parsed_df.to_dict('records')
-
-    # Save the parsed results to a CSV file using save_to_csv
-    chemin_final_csv = './IPCC_Answer_Based/final_climate_analysis_results.csv'
-    fieldnames_final = ["paragraph", "binary_response", "subjects"]
-    save_to_csv(mentions, chemin_final_csv, fieldnames_final)
+    # Affichage de quelques lignes du DataFrame final
+    print(parsed_df_improved.head())
 
 
 def run_script_5():
