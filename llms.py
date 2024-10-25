@@ -422,3 +422,54 @@ def generate_questions_parallel(df, llm_chain):
                     f"Error generating question for phrase: {row['current_phrase']} - {exc}")
 
     return pd.DataFrame(results)
+
+
+# Prompts pour chaque LLM (exactitude, biais, ton)
+def creer_prompts():
+    prompt_template_exactitude = """
+    Vous êtes chargé de comparer une phrase d'un article de presse aux informations officielles du rapport du GIEC. Votre tâche consiste à évaluer l'exactitude des informations présentées dans cette phrase, en vous basant sur les sections du rapport du GIEC fournies. 
+
+    **Tâche** : Donnez une réponse binaire (Exact ou Non_exact) et justifiez votre évaluation en listant des éléments précis issus du rapport du GIEC.
+
+    **Phrase de l'article** :
+    {current_phrase}
+
+    **Contexte** :
+    {context}
+
+    **Mentions du rapport du GIEC** :
+    {retrieved_sections}
+    """
+
+    prompt_template_biais = """
+    Vous êtes chargé d'analyser une phrase d'un article de presse pour détecter tout biais potentiel par rapport aux informations officielles du rapport du GIEC. 
+
+    **Tâche** : Donnez une évaluation du biais (Exagéré, Minimisé, ou Neutre) et justifiez votre réponse avec des références aux sections pertinentes du rapport du GIEC.
+
+    **Phrase de l'article** :
+    {current_phrase}
+
+    **Contexte** :
+    {context}
+
+    **Mentions du rapport du GIEC** :
+    {retrieved_sections}
+    """
+
+    prompt_template_ton = """
+    Vous êtes chargé d'analyser le ton d'une phrase d'un article de presse en la comparant aux informations du rapport du GIEC. 
+
+    **Tâche** : Donnez une évaluation du ton (Alarmiste, Minimisant, Neutre, ou Factuel) et justifiez votre réponse.
+
+    **Phrase de l'article** :
+    {current_phrase}
+
+    **Contexte** :
+    {context}
+
+    **Mentions du rapport du GIEC** :
+    {retrieved_sections}
+    """
+
+    return prompt_template_exactitude, prompt_template_biais, prompt_template_ton
+

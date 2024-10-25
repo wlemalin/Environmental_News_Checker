@@ -11,13 +11,14 @@ Fonctionnalités principales :
 
 """
 
-from nltk.tokenize import sent_tokenize
 import csv
 import json
 import os
+
 import pandas as pd
-from llama_index.core import Settings
+from nltk.tokenize import sent_tokenize
 from pdfminer.high_level import extract_text
+
 from txt_manipulation import parse_llm_response
 
 
@@ -109,13 +110,17 @@ def charger_embeddings_rapport(chemin_rapport_embeddings: str) -> tuple[list, li
     """
     with open(chemin_rapport_embeddings, 'r', encoding='utf-8') as file:
         data = json.load(file)
-    sections = [section['text'] for section in data]
-    embeddings = [Settings.embed_model.get_text_embedding(section) for section in sections]
-    print(type(embeddings))
-    return embeddings, sections
 
+    sections = [section['text'] for section in data]
+    embeddings = [section['embedding'] for section in data]
+    titles = [section.get('title', 'Section sans titre')
+              for section in data]  # Get section titles or default
+
+    return embeddings, sections, titles
 
 # Fonction pour sauvegarder les mentions ou correspondances dans un fichier CSV
+
+
 def save_to_csv(mentions: list[dict], chemin_csv: str, fieldnames: list[str]) -> None:
     """
     Sauvegarde les mentions ou correspondances dans un fichier CSV.
@@ -151,7 +156,6 @@ def load_paragraphs_from_csv(csv_file_path: str) -> list[str]:
     return paragraphs
 
 
-
 # Function to parse all responses and create a DataFrame
 def create_final_dataframe(df: pd.DataFrame) -> pd.DataFrame:
     """
@@ -173,7 +177,7 @@ def create_final_dataframe(df: pd.DataFrame) -> pd.DataFrame:
             "binary_response": binary_response,
             "subjects": subjects_list
         })
-    
+
     return pd.DataFrame(parsed_data)
 
 
@@ -189,9 +193,9 @@ def sauvegarder_mentions_csv(mentions, chemin_csv):
     df_mentions.to_csv(chemin_csv, index=False)
     print(f"Mentions sauvegardées dans le fichier {chemin_csv}")
 
-
-
 # Charger les paragraphes et les mentions du GIEC
+
+
 def charger_paragraphes_et_mentions(chemin_paragraphes_csv, chemin_mentions_csv):
     paragraphes_df = pd.read_csv(chemin_paragraphes_csv)
     mentions_df = pd.read_csv(chemin_mentions_csv)
@@ -204,14 +208,12 @@ def sauvegarder_resultats_evaluation(resultats, chemin_resultats_csv):
     print(f"Résultats d'évaluation sauvegardés dans {chemin_resultats_csv}")
 
 
-
 # Fonction pour lire un fichier local et créer des paragraphes toutes les 4 phrases
 def load_and_group_text(file_path):
     with open(file_path, 'r', encoding='utf-8') as f:
         text = f.read()
     sentences = sent_tokenize(text)  # Divise le texte en phrases
     return sentences
-
 
 
 # Sauvegarder les résultats dans un fichier CSV
@@ -221,4 +223,9 @@ def save_results_to_csv(results, output_path="climate_analysis_results.csv"):
     print(f"Results saved to {output_path}")
 
 
+
+# Charger les phrases et les sections extraites du fichier rag_results.csv
+def charger_rag_results(chemin_rag_csv):
+    rag_df = pd.read_csv(chemin_rag_csv)
+    return rag_df
 

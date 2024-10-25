@@ -176,11 +176,9 @@ def run_script_6():
 
 
 def run_script_7():
-    chemin_paragraphes_csv = "/Users/mateodib/Desktop/Environmental_News_Checker-main/final_climate_analysis_with_questions.csv"
-    chemin_mentions_csv = "/Users/mateodib/Desktop/Environmental_News_Checker-main/rag_results.csv"
+    chemin_rag_csv = "/Users/mateodib/Desktop/Environmental_News_Checker-main/rag_results.csv"
     chemin_resultats_csv = "/Users/mateodib/Desktop/Environmental_News_Checker-main/exactitude_biais_ton_results.csv"
-    process_evaluation(chemin_paragraphes_csv,
-                       chemin_mentions_csv, chemin_resultats_csv)
+    process_evaluation(chemin_rag_csv, chemin_resultats_csv)
 
 
 def run_all_scripts():
