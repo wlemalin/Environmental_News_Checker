@@ -34,8 +34,8 @@ def run_script_1():
     Première Partie : Nettoyage de l'article de Presse.
     Charge et prétraite l'article en supprimant les éléments non pertinents, puis le sauvegarde dans un dossier.
     """
-    chemin_article = './IPCC_Answer_Based/_ _ C_est plus confortable de se dire que ce n_est pas si grave __cleaned.txt'
-    chemin_dossier_nettoye = './IPCC_Answer_Based/Nettoye_Articles/'
+    chemin_article = '_ _ C_est plus confortable de se dire que ce n_est pas si grave __cleaned.txt'
+    chemin_dossier_nettoye = '/Nettoye_Articles/'
     # Prétraiter l'article
     pretraiter_article(chemin_article, chemin_dossier_nettoye)
 
@@ -47,8 +47,8 @@ def run_script_2():
     """
     Settings.embed_model = HuggingFaceEmbedding(
         model_name="BAAI/bge-small-en-v1.5")
-    chemin_rapport_pdf = './IPCC_Answer_Based/IPCC_AR6_SYR_SPM.pdf'
-    chemin_output_json = './IPCC_Answer_Based/rapport_indexed.json'
+    chemin_rapport_pdf = 'IPCC_AR6_SYR_SPM.pdf'
+    chemin_output_json = 'rapport_indexed.json'
     # Traiter le PDF et sauvegarder les sections indexées
     process_pdf_to_index(chemin_rapport_pdf, chemin_output_json)
 
@@ -59,9 +59,9 @@ def run_script_3():
     Compare les phrases d'un article avec les sections d'un rapport et identifie les termes du glossaire.
     Sauvegarde les résultats dans un fichier CSV.
     """
-    chemin_cleaned_article = './IPCC_Answer_Based/Nettoye_Articles/_ _ C_est plus confortable de se dire que ce n_est pas si grave __cleaned_cleaned.txt'
-    chemin_resultats_csv = './IPCC_Answer_Based/mentions_extraites.csv'
-    chemin_glossaire = './IPCC_Answer_Based/translated_glossary_with_definitions.csv'
+    chemin_cleaned_article = '_ _ C_est plus confortable de se dire que ce n_est pas si grave __cleaned_cleaned.txt'
+    chemin_resultats_csv = 'mentions_extraites.csv'
+    chemin_glossaire = 'translated_glossary_with_definitions.csv'
     # chemin_rapport_embeddings = './IPCC_Answer_Based/rapport_indexed.json'
 
     # Charger le glossaire (termes et définitions)
@@ -115,7 +115,7 @@ def run_script_4():
     llm_chain = LLMChain(prompt=prompt, llm=llm)
 
     # Chemin vers le fichier texte
-    file_path = "/Users/mateodib/Desktop/IPCC_Answer_Based/Nettoye_Articles/_ _ C_est plus confortable de se dire que ce n_est pas si grave __cleaned_cleaned.txt"
+    file_path = "_ _ C_est plus confortable de se dire que ce n_est pas si grave __cleaned_cleaned.txt"
 
     # Charger et regrouper le texte en phrases
     sentences = load_and_group_text(file_path)
@@ -136,7 +136,7 @@ def run_script_4():
     parsed_df_improved = parsed_responses(analysis_results_df)
 
     # Sauvegarder le DataFrame avec les résultats parsés
-    output_path_improved = "/Users/mateodib/Desktop/Environmental_News_Checker-main/final_climate_analysis_results_improved.csv"
+    output_path_improved = "final_climate_analysis_results_improved.csv"
     parsed_df_improved['subjects'] = parsed_df_improved['subjects'].apply(
         lambda x: ', '.join(x))
     parsed_df_improved.to_csv(output_path_improved, index=False)
@@ -148,7 +148,7 @@ def run_script_4():
 def run_script_5():
     # Charger la base de données CSV contenant les phrases, la réponse binaire, et le contexte
     df = pd.read_csv(
-        "/Users/mateodib/Desktop/Environmental_News_Checker-main/final_climate_analysis_results_improved.csv")
+        "final_climate_analysis_results_improved.csv")
 
     # Convertir la colonne 'binary_response' en texte (si elle est en format texte)
     df['binary_response'] = df['binary_response'].astype(str)
@@ -163,21 +163,21 @@ def run_script_5():
     questions_df = generate_questions_parallel(df_environment, llm_chain)
 
     # Sauvegarder les résultats dans un nouveau fichier CSV
-    output_path_questions = "/Users/mateodib/Desktop/Environmental_News_Checker-main/final_climate_analysis_with_questions.csv"
+    output_path_questions = "final_climate_analysis_with_questions.csv"
     questions_df.to_csv(output_path_questions, index=False)
     print(f"Questions generated and saved to {output_path_questions}")
 
 
 def run_script_6():
-    chemin_questions_csv = "/Users/mateodib/Desktop/Environmental_News_Checker-main/final_climate_analysis_with_questions.csv"
-    chemin_rapport_embeddings = "/Users/mateodib/Desktop/IPCC_Answer_Based/rapport_indexed.json"
-    chemin_resultats_csv = "/Users/mateodib/Desktop/Environmental_News_Checker-main/rag_results.csv"
+    chemin_questions_csv = "final_climate_analysis_with_questions.csv"
+    chemin_rapport_embeddings = "rapport_indexed.json"
+    chemin_resultats_csv = "rag_results.csv"
     rag_process(chemin_questions_csv, chemin_rapport_embeddings, chemin_resultats_csv)
 
 
 def run_script_7():
-    chemin_rag_csv = "/Users/mateodib/Desktop/Environmental_News_Checker-main/rag_results.csv"
-    chemin_resultats_csv = "/Users/mateodib/Desktop/Environmental_News_Checker-main/exactitude_biais_ton_results.csv"
+    chemin_rag_csv = "rag_results.csv"
+    chemin_resultats_csv = "exactitude_biais_ton_results.csv"
     process_evaluation(chemin_rag_csv, chemin_resultats_csv)
 
 
