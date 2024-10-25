@@ -28,7 +28,7 @@ def detect_glossary_terms(phrase: str, termes_glossaire: list[str]) -> list[str]
 
 
 
-def generate_context_windows(phrases, window_size=2):
+def generate_context_windows(phrases, window_size=2, len_phrase_focus=1):
     """
     Génère des fenêtres contextuelles à partir de la liste des phrases.
 
@@ -40,13 +40,16 @@ def generate_context_windows(phrases, window_size=2):
         list: Liste des fenêtres contextuelles sous forme de dictionnaires.
     """
     windows = []
+    focus_window = []
     for i in range(len(phrases)):
         # Combine les phrases avant et après la phrase actuelle dans une seule chaîne de caractères
         context_window = " ".join(phrases[max(0, i - window_size):min(i + window_size + 1, len(phrases))])
+        focus_window =  " ".join(phrases[max(0, i - len_phrase_focus):min(i + len_phrase_focus + 1, len(phrases))])
+
         windows.append({
             "id": i,  # Ajout de l'index
             "context": context_window,
-            "current_phrase": phrases[i]
+            "focused_phrases": focus_window
         })
     return windows
 
