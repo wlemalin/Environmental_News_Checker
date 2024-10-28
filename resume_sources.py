@@ -10,7 +10,7 @@ from tqdm import tqdm
 
 from embeddings_creation import charger_embeddings_rapport, embed_texts
 from file_utils import sauvegarder_resultats_resume
-
+from llms import creer_prompt_resume
 
 def resumer_sections_sur_question(phrase_id, question, retrieved_sections, llm_chain_resume):
     resumes = []  # Liste pour stocker les résumés de chaque section
@@ -111,33 +111,3 @@ def resumer_sections_pertinentes(rag_df, llm_chain_resume):
     return pd.DataFrame(results)
 
 
-# Prompts pour le résumé des sections du GIEC, basé uniquement sur la question
-def creer_prompt_resume():
-    prompt_template_resume = """
-    Votre tâche est d'extraire et de **lister uniquement** les faits les plus pertinents contenus dans les sections du rapport du GIEC. Ces faits doivent être directement liés à la question posée dans l'article ou fournir des informations utiles pour y répondre. Vous devez être **exhaustif** et **précis**.
-
-    **Instructions** :
-    - **Tâche principale** : Lister **exclusivement** les faits tirés des sections du GIEC qui sont pertinents pour répondre à la question de l'article. N'ajoutez aucun commentaire, aucune interprétation, ni éléments superflus. 
-    - **Aucune justification ou commentaire personnel** : Limitez-vous aux faits du GIEC. Ne vous excusez pas et n'ajoutez pas d'éléments de transition. 
-    - **Exhaustivité** : Soyez aussi exhaustif que possible. Tous les faits pertinents doivent être inclus.
-    - **Clarté et précision** : Chaque fait doit être présenté de manière claire et concise, en une ou deux phrases courtes.
-    - **Organisation** : Utilisez une liste numérotée pour présenter les faits.
-    
-    **Question posée dans l'article** :
-    {question}
-    
-    **Sections du rapport du GIEC associées** :
-    {retrieved_sections}
-    
-    **Exemple de réponse** :
-    
-        1. Le niveau global de la mer a augmenté de 0,19 mètre entre 1901 et 2010, selon les données du rapport.
-        2. Les températures moyennes mondiales ont augmenté de 1,09°C entre 1850-1900 et 2011-2020, ce qui est principalement attribué aux activités humaines.
-        3. Les concentrations de CO2 dans l'atmosphère ont atteint 410 ppm en 2019, soit les niveaux les plus élevés depuis au moins 2 millions d'années.
-        4. La fréquence et l'intensité des vagues de chaleur ont augmenté dans de nombreuses régions du monde depuis les années 1950.
-        5. Les événements extrêmes, tels que les inondations et les sécheresses, sont plus fréquents et plus intenses, en partie à cause du réchauffement climatique.
-        6. La fonte des glaciers contribue à environ 20% de l'élévation du niveau de la mer observée entre 1993 et 2018.
-
-    """
-
-    return PromptTemplate(template=prompt_template_resume, input_variables=["question", "retrieved_sections"])

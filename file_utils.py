@@ -237,8 +237,3 @@ def sauvegarder_resultats_resume(resultats, chemin_resultats_csv):
 
 
 
-# Charger les phrases et les sections extraites du fichier rag_results.csv
-def charger_rag_results(chemin_rag_csv):
-    rag_df = pd.read_csv(chemin_rag_csv)
-    return rag_df
-
