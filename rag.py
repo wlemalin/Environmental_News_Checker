@@ -1,15 +1,10 @@
 from concurrent.futures import ThreadPoolExecutor
 
-import numpy as np
-import torch
 from langchain import LLMChain, PromptTemplate
 from langchain.chains import LLMChain
 from langchain_ollama import OllamaLLM
 from sentence_transformers import SentenceTransformer, util
 from tqdm import tqdm
-
-from embeddings_creation import (charger_embeddings_rapport, embed_texts,
-                                 generer_embeddings_rapport)
 from file_utils import charger_questions, sauvegarder_mentions_csv
 
 
@@ -27,7 +22,7 @@ def rag_answer_generation_with_llmchain(question, relevant_sections, llm_chain):
 
 
 # Comparer les questions aux sections du rapport via les embeddings
-def comparer_questions_rapport(questions, embeddings_rapport, sections_rapport, titles_rapport, llm_chain, embed_model, top_k=3):
+def comparer_questions_rapport(questions, llm_chain):
     results = []
 
     # Utilisation d'un pool de threads pour paralléliser le traitement
@@ -36,10 +31,13 @@ def comparer_questions_rapport(questions, embeddings_rapport, sections_rapport, 
         for _, row in tqdm(questions.iterrows(), total=len(questions), desc="Comparing questions"):
             ID = row['id']
             question = row['question']
+            resume_sections = row['resume_sections']
+
             # Utilisation de 'current_phrase' au lieu de 'paragraph'
+            sections = row['sections']
             current_phrase = row['current_phrase']
-            futures.append(executor.submit(trouver_sections_et_generer_reponse, question, current_phrase,
-                           embeddings_rapport, sections_rapport, titles_rapport, llm_chain, embed_model, top_k, ID))
+            futures.append(executor.submit(trouver_sections_et_generer_reponse, question, current_phrase, sections,
+                                           llm_chain, ID))
 
         # Récupérer les résultats
         for future in tqdm(futures, desc="Retrieving answers"):
@@ -49,8 +47,9 @@ def comparer_questions_rapport(questions, embeddings_rapport, sections_rapport, 
                     "id": ID,
                     "current_phrase": current_phrase,  # Inclure la phrase dans les résultats
                     "question": question,
+                    "sections_resumees": resume_sections,
                     "retrieved_sections": retrieved_sections,
-                    "generated_answer": generated_answer
+                    "reponse": generated_answer
                 })
             except Exception as exc:
                 print(f"Error during RAG: {exc}")
@@ -60,36 +59,18 @@ def comparer_questions_rapport(questions, embeddings_rapport, sections_rapport, 
 # Fonction pour trouver les sections pertinentes et générer une réponse
 
 
-def trouver_sections_et_generer_reponse(question, current_phrase, embeddings_rapport, sections_rapport, titles_rapport, llm_chain, embed_model, top_k, ID):
-    question_embedding = embed_texts([question], embed_model)[0]
-
-    # Convert embeddings to torch tensor on CPU
-    similarites = util.cos_sim(question_embedding, torch.tensor(
-        embeddings_rapport, device='cpu'))  # Ensure on CPU
-
-    top_k_indices = np.argsort(-similarites[0])[:top_k]
-    top_k_sections = [
-        f"{titles_rapport[j]}: {sections_rapport[j]}" for j in top_k_indices]
+def trouver_sections_et_generer_reponse(question, sections, current_phrase, llm_chain, ID):
 
     generated_answer = rag_answer_generation_with_llmchain(
-        question, top_k_sections, llm_chain)
+        question, sections, llm_chain)
 
-    return question, current_phrase, " ".join(top_k_sections), generated_answer, ID
+    return question, current_phrase, " ".join(sections), generated_answer, ID
 
 # Main function to execute the RAG process
 
 
-def rag_process(chemin_questions_csv, chemin_rapport_embeddings, chemin_resultats_csv):
+def rag_process(chemin_questions_csv, chemin_resultats_csv):
     questions_df = charger_questions(chemin_questions_csv)
-
-    embed_model = SentenceTransformer(
-        'sentence-transformers/all-MiniLM-L6-v2', device='cpu')  # Set the model to CPU
-
-    # Générer les embeddings si nécessaire (si 'embedding' n'existe pas dans le fichier JSON)
-    generer_embeddings_rapport(chemin_rapport_embeddings, embed_model)
-
-    embeddings_rapport, sections_rapport, titles_rapport = charger_embeddings_rapport(
-        chemin_rapport_embeddings)
 
     llm = OllamaLLM(model="llama3.2:3b-instruct-fp16")
 
@@ -116,7 +97,6 @@ def rag_process(chemin_questions_csv, chemin_rapport_embeddings, chemin_resultat
                             "question", "consolidated_text"])
     llm_chain = LLMChain(prompt=prompt, llm=llm)
 
-    mentions = comparer_questions_rapport(
-        questions_df, embeddings_rapport, sections_rapport, titles_rapport, llm_chain, embed_model)
+    mentions = comparer_questions_rapport(questions_df, llm_chain)
 
     sauvegarder_mentions_csv(mentions, chemin_resultats_csv)

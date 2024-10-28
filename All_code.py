@@ -27,7 +27,7 @@ from pdf_processing import process_pdf_to_index
 from rag import rag_process
 from topic_classifier import generate_context_windows, keywords_for_each_chunk
 from txt_manipulation import decouper_en_phrases, pretraiter_article
-
+from resume_sources import process_resume
 
 def run_script_1():
     """
@@ -168,11 +168,16 @@ def run_script_5():
     print(f"Questions generated and saved to {output_path_questions}")
 
 
-def run_script_6():
-    chemin_questions_csv = "final_climate_analysis_with_questions.csv"
+def resume_sources():
+    chemin_csv_questions = "final_climate_analysis_with_questions.csv" # final_climate_analysis_with_questions.csv TODO
+    chemin_resultats_csv = "resume_sections_results.csv"
     chemin_rapport_embeddings = "rapport_indexed.json"
+    process_resume(chemin_csv_questions,chemin_rapport_embeddings, chemin_resultats_csv, 5) # Top-K = 5
+
+def run_script_6():
+    chemin_questions_csv = "resume_sections_results.csv" #résumé sections résults ? TODO
     chemin_resultats_csv = "rag_results.csv"
-    rag_process(chemin_questions_csv, chemin_rapport_embeddings, chemin_resultats_csv)
+    rag_process(chemin_questions_csv, chemin_resultats_csv)
 
 
 def run_script_7():
@@ -189,8 +194,9 @@ def run_all_scripts():
     run_script_2()
     run_script_3()
     run_script_4()
-    run_script_5()
-    run_script_6()
+    run_script_5()  # Create questions
+    resume_sources()
+    run_script_6()  # Answer questions
     run_script_7()
 
 
@@ -204,6 +210,7 @@ if __name__ == "__main__":
     print("3. Topic Recognition")
     print("4. Check for IPCC references")
     print("5. Create question for each chunk")
+    print("t. Resume sections source")
     print("6. Run RAG on questions")
     print("7. Get metrics")
     print("8. Run all scripts")
@@ -225,6 +232,9 @@ if __name__ == "__main__":
         case "5":
             print("You chose Option 5")
             run_script_5()
+        case "t":
+            print("You chose Option t")
+            resume_sources()
         case "6":
             print("You chose Option 6")
             run_script_6()
@@ -236,3 +246,6 @@ if __name__ == "__main__":
             run_all_scripts()
         case _:
             print("Invalid choice. Please choose a valid option.")
+
+
+

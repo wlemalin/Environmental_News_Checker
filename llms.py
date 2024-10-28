@@ -431,11 +431,6 @@ def creer_prompts():
 
     **Tâche** : Donnez une réponse binaire (Exact ou Non_exact) et justifiez votre évaluation en listant des éléments précis issus du rapport du GIEC.
 
-    **Phrase de l'article** :
-    {current_phrase}
-
-    **Contexte** :
-    {context}
 
     **Mentions du rapport du GIEC** :
     {retrieved_sections}
@@ -449,8 +444,6 @@ def creer_prompts():
     **Phrase de l'article** :
     {current_phrase}
 
-    **Contexte** :
-    {context}
 
     **Mentions du rapport du GIEC** :
     {retrieved_sections}
@@ -464,8 +457,6 @@ def creer_prompts():
     **Phrase de l'article** :
     {current_phrase}
 
-    **Contexte** :
-    {context}
 
     **Mentions du rapport du GIEC** :
     {retrieved_sections}

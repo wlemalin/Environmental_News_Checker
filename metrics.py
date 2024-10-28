@@ -11,13 +11,12 @@ from llms import creer_prompts
 from file_utils import charger_rag_results
 
 # Fonction pour évaluer une phrase spécifique (exactitude, biais et ton)
-def evaluer_trois_taches_sur_phrase(phrase_id, question, current_phrase, context, retrieved_sections_concat,
+def evaluer_trois_taches_sur_phrase(phrase_id, question, current_phrase, sections_resumees,
                                     llm_chain_exactitude, llm_chain_biais, llm_chain_ton):
     # Évaluation de l'exactitude
     response_exactitude = llm_chain_exactitude.invoke({
         "current_phrase": current_phrase,
-        "context": context,
-        "retrieved_sections": retrieved_sections_concat
+        "sections_resumees": sections_resumees
     })
     exactitude = response_exactitude['text'].strip() if isinstance(
         response_exactitude, dict) and "text" in response_exactitude else response_exactitude.strip()
@@ -25,8 +24,7 @@ def evaluer_trois_taches_sur_phrase(phrase_id, question, current_phrase, context
     # Évaluation du biais
     response_biais = llm_chain_biais.invoke({
         "current_phrase": current_phrase,
-        "context": context,
-        "retrieved_sections": retrieved_sections_concat
+        "sections_resumees": sections_resumees
     })
     biais = response_biais['text'].strip() if isinstance(
         response_biais, dict) and "text" in response_biais else response_biais.strip()
@@ -34,8 +32,7 @@ def evaluer_trois_taches_sur_phrase(phrase_id, question, current_phrase, context
     # Évaluation du ton
     response_ton = llm_chain_ton.invoke({
         "current_phrase": current_phrase,
-        "context": context,
-        "retrieved_sections": retrieved_sections_concat
+        "sections_resumees": sections_resumees
     })
     ton = response_ton['text'].strip() if isinstance(
         response_ton, dict) and "text" in response_ton else response_ton.strip()
@@ -45,8 +42,7 @@ def evaluer_trois_taches_sur_phrase(phrase_id, question, current_phrase, context
         "id": phrase_id,  # Ajout de l'ID dans les résultats
         "question": question,  # Ajout de la question dans les résultats
         "current_phrase": current_phrase,
-        "context": context,
-        "retrieved_sections": retrieved_sections_concat,
+        "sections_resumees": sections_resumees,
         "exactitude": exactitude,
         "biais": biais,
         "ton": ton
@@ -65,15 +61,14 @@ def evaluer_phrase_trois_taches(rag_df, llm_chain_exactitude, llm_chain_biais, l
             phrase_id = row['id']
             current_phrase = row['current_phrase']
             # Utilisation du contexte généré comme contexte
-            context = row['generated_answer']
             question = row['question']  # Récupérer la question associée
             # Récupérer les sections associées
-            retrieved_sections_concat = row['retrieved_sections']
+            sections_resumees = row['sections_resumees']
 
             # Soumettre les trois évaluations (exactitude, biais, ton) à exécuter en parallèle
             futures.append(executor.submit(
                 evaluer_trois_taches_sur_phrase,
-                phrase_id, question, current_phrase, context, retrieved_sections_concat,
+                phrase_id, question, current_phrase, sections_resumees,
                 llm_chain_exactitude, llm_chain_biais, llm_chain_ton
             ))
 
@@ -101,11 +96,11 @@ def process_evaluation(rag_csv, resultats_csv):
 
     # Créer des chaînes LLM pour chaque tâche en utilisant le même modèle
     llm_chain_exactitude = LLMChain(prompt=PromptTemplate(template=prompt_exactitude, input_variables=[
-                                    "current_phrase", "context", "retrieved_sections"]), llm=llm)
+                                    "current_phrase", "sections_resumees"]), llm=llm)
     llm_chain_biais = LLMChain(prompt=PromptTemplate(template=prompt_biais, input_variables=[
-                               "current_phrase", "context", "retrieved_sections"]), llm=llm)
+                               "current_phrase", "sections_resumees"]), llm=llm)
     llm_chain_ton = LLMChain(prompt=PromptTemplate(template=prompt_ton, input_variables=[
-                             "current_phrase", "context", "retrieved_sections"]), llm=llm)
+                             "current_phrase", "sections_resumees"]), llm=llm)
 
     # Évaluer les phrases pour les trois tâches
     resultats = evaluer_phrase_trois_taches(
