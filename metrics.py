@@ -1,11 +1,9 @@
 from concurrent.futures import ThreadPoolExecutor, as_completed
-
 import pandas as pd
 import tqdm
 from langchain import LLMChain, PromptTemplate
 from langchain_ollama import OllamaLLM
 from tqdm import tqdm
-
 from file_utils import sauvegarder_resultats_evaluation
 from llms import creer_prompts
 from file_utils import charger_rag_results
@@ -83,28 +81,30 @@ def evaluer_phrase_trois_taches(rag_df, llm_chain_exactitude, llm_chain_biais, l
     return pd.DataFrame(results)
 
 
-# Main function to execute the accuracy, bias, and tone evaluation process
 def process_evaluation(rag_csv, resultats_csv):
-    # Charger les phrases et les mentions du fichier rag_results.csv
+    # Load rag_results.csv
     rag_df = charger_rag_results(rag_csv)
 
-    # Configurer un seul modèle LLM (Llama3.2 via Ollama)
+    # Load final_climate_analysis_with_questions.csv with only 'id' and 'current_phrase' columns
+    questions_df = pd.read_csv("/Users/mateodib/Desktop/Environmental_News_Checker-main/final_climate_analysis_with_questions.csv", usecols=['id', 'current_phrase'])
+
+    # Merge rag_df with questions_df on 'id' to add the 'current_phrase' column
+    rag_df = rag_df.merge(questions_df, on='id', how='left')
+
+    # Initialize the LLM model (Llama3.2 via Ollama)
     llm = OllamaLLM(model="llama3.2:3b-instruct-fp16")
 
-    # Créer des templates de prompts pour chaque tâche
+    # Create prompt templates for each task
     prompt_exactitude, prompt_biais, prompt_ton = creer_prompts()
 
-    # Créer des chaînes LLM pour chaque tâche en utilisant le même modèle
-    llm_chain_exactitude = LLMChain(prompt=PromptTemplate(template=prompt_exactitude, input_variables=[
-                                    "current_phrase", "sections_resumees"]), llm=llm)
-    llm_chain_biais = LLMChain(prompt=PromptTemplate(template=prompt_biais, input_variables=[
-                               "current_phrase", "sections_resumees"]), llm=llm)
-    llm_chain_ton = LLMChain(prompt=PromptTemplate(template=prompt_ton, input_variables=[
-                             "current_phrase", "sections_resumees"]), llm=llm)
+    # Create LLM chains for each task using the same model
+    llm_chain_exactitude = LLMChain(prompt=PromptTemplate(template=prompt_exactitude, input_variables=["current_phrase", "sections_resumees"]), llm=llm)
+    llm_chain_biais = LLMChain(prompt=PromptTemplate(template=prompt_biais, input_variables=["current_phrase", "sections_resumees"]), llm=llm)
+    llm_chain_ton = LLMChain(prompt=PromptTemplate(template=prompt_ton, input_variables=["current_phrase", "sections_resumees"]), llm=llm)
 
-    # Évaluer les phrases pour les trois tâches
-    resultats = evaluer_phrase_trois_taches(
-        rag_df, llm_chain_exactitude, llm_chain_biais, llm_chain_ton)
+    # Evaluate phrases for accuracy, bias, and tone
+    resultats = evaluer_phrase_trois_taches(rag_df, llm_chain_exactitude, llm_chain_biais, llm_chain_ton)
 
-    # Sauvegarder les résultats
+    # Save results
     sauvegarder_resultats_evaluation(resultats, resultats_csv)
+

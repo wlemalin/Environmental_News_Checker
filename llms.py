@@ -23,7 +23,7 @@ from llama_index.core import Settings
 from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 from llama_index.embeddings.ollama import OllamaEmbedding
 from sentence_transformers import util
-from tqdm import tqdm  # Pour la barre de progression
+from tqdm import tqdm
 
 
 # Fonction pour configurer les modèles d'embeddings
@@ -132,9 +132,6 @@ def comparer_article_rapport_with_rag(phrases_article: list[str], embeddings_rap
 
 
 
-
-
-
 # Fonction pour analyser un paragraphe avec Llama 3.2
 def analyze_paragraph_with_llm(current_phrase, context, llm_chain):
     # Créer un seul dictionnaire avec les deux clés
@@ -151,7 +148,7 @@ def analyze_paragraph_with_llm(current_phrase, context, llm_chain):
 # Fonction pour gérer l'analyse des paragraphes en parallèle
 def analyze_paragraphs_parallel(splitted_text, llm_chain):
     results = []
-
+    
     # Utilisation de ThreadPoolExecutor pour le traitement parallèle
     with concurrent.futures.ThreadPoolExecutor(max_workers=14) as executor:
         # Créez une tâche pour chaque entrée de splitted_text (chaque phrase avec son contexte et son index)
@@ -264,20 +261,20 @@ def create_questions_llm(model_name="llama3.2:3b-instruct-fp16"):
     """
     llm = Ollama(model=model_name)
     prompt_template = """
-    Vous êtes chargé de formuler une **question précise** pour vérifier les informations mentionnées dans un article de presse en consultant directement les rapports du GIEC (Groupe d'experts intergouvernemental sur l'évolution du climat).
+    Vous êtes chargé de formuler une **question précise** pour vérifier les informations mentionnées dans un extrait spécifique d'un article de presse en consultant directement les rapports du GIEC (Groupe d'experts intergouvernemental sur l'évolution du climat).
 
     Cette question sera utilisée dans un système de récupération d'information (RAG) pour extraire les sections pertinentes des rapports du GIEC et comparer les informations des rapports avec celles de l'article de presse.
 
-    **Objectif** : La question doit permettre de vérifier si les informations fournies dans la phrase de l'article sont corroborées ou contestées par les preuves scientifiques dans les rapports du GIEC.
+    **Objectif** : La question doit permettre de vérifier si les informations fournies dans la phrase de l'article sont corroborées ou contestées par les preuves scientifiques dans les rapports du GIEC. La question doit donc englober tous les sujets abordés par l'extrait de l'article de presse.
 
     **Instructions** :
 
-    1. Analysez la phrase et son contexte pour identifier les affirmations clés ou les informations à vérifier.
-    2. Formulez une **question claire et spécifique** orientée vers la vérification de ces affirmations ou informations à partir des rapports du GIEC.
+    1. Analysez l'extrait et son contexte pour identifier les affirmations clées et/ou les informations à vérifier.
+    2. Formulez une **question claire et spécifique** orientée vers la vérification de ces affirmations ou informations à partir des rapports du GIEC. La question doit permettre de vérifier toutes les informations de l'extraits. La question peut être un ensemble de questions comme : "Quel est l'impact des activités humaines sur le taux de CO2 dans l'atomsphère ? Comment la concentration du CO2 dans l'atmosphère impact l'argiculture?"
     3. La question doit être **directement vérifiable** dans les rapports du GIEC via un système RAG.
     4. **IMPORTANT** : Répondez uniquement avec la question, sans ajouter d'explications ou de contexte supplémentaire.
 
-    Phrase : {current_phrase}
+    Extrait de l'article de presse : {current_phrase}
 
     Contexte : {context}
 
@@ -303,7 +300,7 @@ def generate_questions_parallel(df, llm_chain):
     results = []
 
     # Utilisation de ThreadPoolExecutor pour le traitement parallèle
-    with concurrent.futures.ThreadPoolExecutor(max_workers=14) as executor:
+    with concurrent.futures.ThreadPoolExecutor(max_workers=8) as executor:
         futures = {executor.submit(generate_question, row['current_phrase'], row['context'],
                                    llm_chain): row for _, row in df.iterrows() if row['binary_response'] == '1'}
 
@@ -324,41 +321,69 @@ def generate_questions_parallel(df, llm_chain):
 # Prompts pour chaque LLM (exactitude, biais, ton)
 def creer_prompts():
     prompt_template_exactitude = """
-    Vous êtes chargé de comparer une phrase d'un article de presse aux informations officielles du rapport du GIEC. Votre tâche consiste à évaluer l'exactitude des informations présentées dans cette phrase, en vous basant sur les sections du rapport du GIEC fournies. 
+    Vous êtes chargé de comparer un extrait d'un article de presse aux informations officielles du rapport du GIEC. Votre tâche consiste à évaluer l'exactitude des informations présentées dans ce extrait, en vous basant sur les sections du rapport du GIEC fournies. 
 
-    **Tâche** : Donnez une réponse binaire (Exact ou Non_exact) et justifiez votre évaluation en listant des éléments précis issus du rapport du GIEC.
+    **Contexte** : L'extrait de l'article peut contenir des informations sur le changement climatique, les impacts environnementaux, ou d'autres sujets liés au climat. Vous devez juger si ces informations correspondent ou non aux faits et conclusions du rapport du GIEC tout en étant assez flexible sur le fait que c'est un extrait d'un article de presse et non un article scientifique.
 
-    **Phrase de l'article** :
+    **Objectif** : 
+    1. Évaluer si le contenu de l'extrait est exact ou non en fonction des informations spécifiques du rapport du GIEC présentées.
+    2. Si les informations sont partiellement exactes, expliquez les points précis où elles diffèrent ou nécessitent des nuances.
+
+    **Tâche** : Donnez une réponse sous forme d'un score compris entre 0 et 5 évaluant l'exactitude et justifiez votre évaluation en listant des éléments précis issus du rapport du GIEC.
+
+    **Format de la réponse** :
+    1. **Score de l'extrait** : Score ente 0 et 5
+    2. **Justifications** : Listez les éléments clés qui soutiennent votre évaluation (faites référence aux sections du rapport du GIEC fournies). Si l'information est nuancée, mentionnez clairement les divergences.
+
+    **Extrait de l'article** :
     {current_phrase}
 
-    **Mentions du rapport du GIEC** :
-    {retrieved_sections}
+    **Informations du rapport du GIEC sur lesquelles baser votre réponse** :
+    {sections_resumees}
     """
 
     prompt_template_biais = """
-    Vous êtes chargé d'analyser une phrase d'un article de presse pour détecter tout biais potentiel par rapport aux informations officielles du rapport du GIEC. 
+    Vous êtes chargé d'analyser un extrait d'un article de presse pour détecter tout biais potentiel par rapport aux informations officielles du rapport du GIEC. 
 
-    **Tâche** : Donnez une évaluation du biais (Exagéré, Minimisé, ou Neutre) et justifiez votre réponse avec des références aux sections pertinentes du rapport du GIEC.
+    **Contexte** : L'extrait peut présenter les informations de manière exagérée, minimisée, ou neutre par rapport aux données du rapport du GIEC. Votre tâche consiste à identifier toute forme de biais et à la décrire. Il faut être relativement indulgent sur la manière de traiter l'extrait étant donné qu'il provient d'un article de presse et que donc, par définition, il n'utilise pas le même ton que le rapport du GIEC.
 
-    **Phrase de l'article** :
+    **Objectif** : 
+    1. Déterminer si l'extrait amplifie, minimise, ou présente de manière neutre les faits du rapport du GIEC.
+    2. Justifier votre réponse en vous basant sur les informations des sections du rapport du GIEC.
+
+    **Tâche** : Donnez une évaluation du biais (Exagéré, Minimisé, Neutre) et justifiez votre réponse avec des références aux sections pertinentes du rapport du GIEC.
+
+    **Format de la réponse** :
+    1. **Type de biais** : Exagéré, Minimisé, ou Neutre.
+    2. **Justifications** : Détaillez les éléments spécifiques qui justifient votre évaluation du biais, en vous basant sur le contenu du rapport du GIEC.
+
+    **Extrait de l'article** :
     {current_phrase}
 
-
-    **Mentions du rapport du GIEC** :
-    {retrieved_sections}
+    **Informations du rapport du GIEC sur lesquelles baser votre réponse** :
+    {sections_resumees}
     """
 
     prompt_template_ton = """
-    Vous êtes chargé d'analyser le ton d'une phrase d'un article de presse en la comparant aux informations du rapport du GIEC. 
+    Vous êtes chargé d'analyser le ton d'un extrait d'un article de presse en le comparant aux informations du rapport du GIEC. 
 
-    **Tâche** : Donnez une évaluation du ton (Alarmiste, Minimisant, Neutre, ou Factuel) et justifiez votre réponse.
+    **Contexte** : Le paragraphe peut utiliser un ton alarmiste, minimiser les faits, ou présenter les informations de manière factuelle et neutre. Votre tâche est de déterminer quel ton est utilisé et de justifier votre réponse en vous appuyant sur les sections pertinentes du rapport du GIEC. Il faut être relativement indulgent sur la manière de traiter l'extrait étant donné qu'il provient d'un article de presse et que donc, par définition, il n'utilise pas le même ton que le rapport du GIEC.
 
-    **Phrase de l'article** :
+    **Objectif** : 
+    1. Déterminer le ton général de l'extrait : alarmiste, minimisant, factuel, ou neutre.
+    2. Justifier votre évaluation en comparant l'extrait aux informations du rapport du GIEC.
+
+    **Tâche** : Donnez une évaluation du ton (Alarmiste, Minimisant, Neutre, Factuel) et justifiez votre réponse en comparant les faits du paragraphe avec les informations du rapport.
+
+    **Format de la réponse** :
+    1. **Évaluation du ton** : Alarmiste, Minimisant, Neutre, ou Factuel.
+    2. **Justifications** : Expliquez les éléments spécifiques de l'extrait qui supportent votre évaluation du ton, en les comparant aux sections du rapport du GIEC.
+
+    **Extrait de l'article** :
     {current_phrase}
 
-
-    **Mentions du rapport du GIEC** :
-    {retrieved_sections}
+    **Informations du rapport du GIEC sur lesquelles baser votre réponse** :
+    {sections_resumees}
     """
 
     return prompt_template_exactitude, prompt_template_biais, prompt_template_ton
@@ -367,21 +392,20 @@ def creer_prompts():
 # Prompts pour le résumé des sections du GIEC, basé uniquement sur la question
 def creer_prompt_resume():
     prompt_template_resume = """
-    Votre tâche est d'extraire et de **lister uniquement** les faits les plus pertinents contenus dans les sections du rapport du GIEC. Ces faits doivent être directement liés à la question posée dans l'article ou fournir des informations utiles pour y répondre. Vous devez être **exhaustif** et **précis**.
+    **Tâche** : Vous devez résumer **exclusivement** les faits pertinents contenus dans la section fournie du rapport du GIEC, en rapport avec la question posée. Les informations doivent être directement liées à la question ou fournir des éléments utiles pour y répondre. Ne retenez que les faits vérifiables du rapport, sans commentaire ni interprétation.
 
-    **Instructions** :
-    - **Tâche principale** : Lister **exclusivement** les faits tirés des sections du GIEC qui sont pertinents pour répondre à la question de l'article. N'ajoutez aucun commentaire, aucune interprétation, ni éléments superflus. 
-    - **Aucune justification ou commentaire personnel** : Limitez-vous aux faits du GIEC. Ne vous excusez pas et n'ajoutez pas d'éléments de transition. 
-    - **Exhaustivité** : Soyez aussi exhaustif que possible. Tous les faits pertinents doivent être inclus.
-    - **Clarté et précision** : Chaque fait doit être présenté de manière claire et concise, en une ou deux phrases courtes.
-    - **Organisation** : Utilisez une liste numérotée pour présenter les faits.
-    
-    **Question posée dans l'article** :
-    {question}
-    
-    **Sections du rapport du GIEC associées** :
+    **Instructions détaillées** :
+    - **Objectif principal** : Identifier et lister uniquement les informations factuelles de la section du GIEC qui répondent ou sont pertinentes pour la question de l'article.
+    - **Aucune interprétation** : Ne fournissez aucun avis personnel, aucune justification, ni éléments de transition. Contentez-vous des faits issus du GIEC.
+    - **Exhaustivité et précision** : Assurez-vous que tous les faits pertinents sont inclus, et formulez chaque fait de manière concise et précise, en une ou deux phrases courtes.
+    - **Organisation** : Listez les faits de manière numérotée pour garantir la clarté de la réponse.
+
+    ### Question posée :
+    "{question}"
+
+    ### Section du rapport du GIEC :
     {retrieved_sections}
-    
+
     **Exemple de réponse** :
     
         1. Le niveau global de la mer a augmenté de 0,19 mètre entre 1901 et 2010, selon les données du rapport.
@@ -391,6 +415,7 @@ def creer_prompt_resume():
         5. Les événements extrêmes, tels que les inondations et les sécheresses, sont plus fréquents et plus intenses, en partie à cause du réchauffement climatique.
         6. La fonte des glaciers contribue à environ 20% de l'élévation du niveau de la mer observée entre 1993 et 2018.
 
-    """
+    **Remarque** : Assurez-vous que votre réponse est structurée selon les consignes ci-dessus, sans aucun ajout personnel.
+"""
 
     return PromptTemplate(template=prompt_template_resume, input_variables=["question", "retrieved_sections"])

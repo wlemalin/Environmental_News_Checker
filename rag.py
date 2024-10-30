@@ -32,20 +32,17 @@ def comparer_questions_rapport(questions, llm_chain):
             ID = row['id']
             question = row['question']
             resume_sections = row['resume_sections']
-
-            # Utilisation de 'current_phrase' au lieu de 'paragraph'
             sections = row['sections']
-            current_phrase = row['current_phrase']
-            futures.append(executor.submit(trouver_sections_et_generer_reponse, question, current_phrase, sections,
+            
+            futures.append(executor.submit(trouver_sections_et_generer_reponse, question, sections,
                                            llm_chain, ID))
 
         # Récupérer les résultats
         for future in tqdm(futures, desc="Retrieving answers"):
             try:
-                question, current_phrase, retrieved_sections, generated_answer, ID = future.result()
+                question, retrieved_sections, generated_answer, ID = future.result()
                 results.append({
                     "id": ID,
-                    "current_phrase": current_phrase,  # Inclure la phrase dans les résultats
                     "question": question,
                     "sections_resumees": resume_sections,
                     "retrieved_sections": retrieved_sections,
@@ -59,12 +56,12 @@ def comparer_questions_rapport(questions, llm_chain):
 # Fonction pour trouver les sections pertinentes et générer une réponse
 
 
-def trouver_sections_et_generer_reponse(question, sections, current_phrase, llm_chain, ID):
+def trouver_sections_et_generer_reponse(question, sections, llm_chain, ID):
 
     generated_answer = rag_answer_generation_with_llmchain(
         question, sections, llm_chain)
 
-    return question, current_phrase, " ".join(sections), generated_answer, ID
+    return question, " ".join(sections), generated_answer, ID
 
 # Main function to execute the RAG process
 

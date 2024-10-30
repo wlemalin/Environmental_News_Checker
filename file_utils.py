@@ -236,4 +236,3 @@ def sauvegarder_resultats_resume(resultats, chemin_resultats_csv):
     print(f"Résumés sauvegardés dans le fichier {chemin_resultats_csv}")
 
 
-
