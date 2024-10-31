@@ -1,18 +1,16 @@
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, as_completed
+
+import pandas as pd
 from langchain import LLMChain, PromptTemplate
-from langchain.chains import LLMChain
 from langchain_ollama import OllamaLLM
-from sentence_transformers import SentenceTransformer, util
 from tqdm import tqdm
-from file_utils import charger_questions, sauvegarder_mentions_csv
 
 
-# Fonction pour générer des réponses avec Llama3.2 et les sections du rapport
+# Generate answers using Llama3.2 and relevant sections of the report
 def rag_answer_generation_with_llmchain(question, relevant_sections, llm_chain):
-    context = relevant_sections
     inputs = {
         "question": question,
-        "consolidated_text": context
+        "consolidated_text": relevant_sections
     }
     response = llm_chain.invoke(inputs)
     generated_answer = response['text'] if isinstance(
@@ -20,24 +18,32 @@ def rag_answer_generation_with_llmchain(question, relevant_sections, llm_chain):
     return generated_answer.strip()
 
 
-# Comparer les questions aux sections du rapport via les embeddings
-def comparer_questions_rapport(questions, llm_chain):
+def comparer_questions_rapport(questions_df, prompt_template):
     results = []
 
-    # Utilisation d'un pool de threads pour paralléliser le traitement
-    with ThreadPoolExecutor(max_workers=5) as executor:
+    # Use a limited number of threads to avoid memory overload
+    with ThreadPoolExecutor(max_workers=3) as executor:
         futures = []
-        for _, row in tqdm(questions.iterrows(), total=len(questions), desc="Comparing questions"):
+        for _, row in tqdm(questions_df.iterrows(), total=len(questions_df), desc="Comparing questions"):
             ID = row['id']
             question = row['question']
+            # Use the summarized sections specific to the question
             resume_sections = row['resume_sections']
+            # Original sections for reference
             sections_brutes = row['sections']
-            
-            futures.append(executor.submit(trouver_sections_et_generer_reponse, question, resume_sections, sections_brutes,
-                                           llm_chain, ID))
 
-        # Récupérer les résultats
-        for future in tqdm(futures, desc="Retrieving answers"):
+            # Submit each question with its specific resume_sections for processing with a new model instance
+            futures.append(executor.submit(
+                trouver_sections_et_generer_reponse,
+                question,
+                resume_sections,
+                sections_brutes,
+                prompt_template,
+                ID
+            ))
+
+        # Retrieve results as they complete
+        for future in tqdm(as_completed(futures), total=len(futures), desc="Retrieving answers"):
             try:
                 question, resume_sections, generated_answer, ID, sections_brutes = future.result()
                 results.append({
@@ -55,44 +61,50 @@ def comparer_questions_rapport(questions, llm_chain):
 # Fonction pour trouver les sections pertinentes et générer une réponse
 
 
-def trouver_sections_et_generer_reponse(question, sections, sections_brutes, llm_chain, ID):
-
+# Function to find relevant sections and generate a response
+def trouver_sections_et_generer_reponse(question, resume_sections, sections_brutes, prompt_template, ID):
+    # Create a new instance of OllamaLLM for each thread to ensure true parallelism
+    llm = OllamaLLM(model="llama3.2:3b-instruct-fp16")
+    # Combine prompt with model to create a RunnableSequence
+    llm_chain = prompt_template | llm
+    # Generate the answer based on the summarized sections specific to this question
     generated_answer = rag_answer_generation_with_llmchain(
-        question, sections, llm_chain)
+        question, resume_sections, llm_chain)
+    return question, resume_sections, generated_answer, ID, sections_brutes
 
-    return question, " ".join(sections), generated_answer, ID, sections_brutes
 
 # Main function to execute the RAG process
 
 
+# Main function to execute the RAG process with separate model instances for each thread
 def rag_process(chemin_questions_csv, chemin_resultats_csv):
-    questions_df = charger_questions(chemin_questions_csv)
+    # Load questions and relevant sections from rag_results.csv
+    questions_df = pd.read_csv(chemin_questions_csv)
 
-    llm = OllamaLLM(model="llama3.2:3b-instruct-fp16")
+    # Define the prompt template for RAG
+    prompt_template = PromptTemplate(
+        template="""
+        Vous êtes un expert en climatologie et votre rôle est d'analyser les informations provenant d'un article de presse sur le changement climatique. Votre tâche consiste à répondre à la question ci-dessous en utilisant uniquement les sections pertinentes du rapport du GIEC fournies.
+        
+        **Instructions** :
+        1. Lisez attentivement la question posée par l'article.
+        2. Utilisez les informations pertinentes des sections du rapport du GIEC pour formuler une réponse précise et fondée.
+        3. Justifiez votre réponse en citant les sections du rapport du GIEC, si nécessaire.
+        4. Limitez votre réponse aux informations présentes dans les sections fournies.
+        
+        **Question de l'article** : {question}
+        
+        **Sections pertinentes du rapport du GIEC** : {consolidated_text}
+        
+        **Réponse** :
+        - **Résumé de la réponse** : (Donnez une réponse concise à la question)
+        - **Justification basée sur le rapport du GIEC** : (Citez et expliquez les éléments pertinents du rapport)
+        """,
+        input_variables=["question", "consolidated_text"]
+    )
 
-    prompt_template = """
-    Vous êtes un expert en climatologie et votre rôle est d'analyser les informations provenant d'un article de presse sur le changement climatique. Votre tâche consiste à répondre à la question ci-dessous en utilisant uniquement les sections pertinentes du rapport du GIEC fournies.
-
-    **Instructions** :
-    1. Lisez attentivement la question posée par l'article.
-    2. Utilisez les informations pertinentes des sections du rapport du GIEC pour formuler une réponse précise et fondée.
-    3. Justifiez votre réponse en citant les sections du rapport du GIEC, si nécessaire.
-    4. Limitez votre réponse aux informations présentes dans les sections fournies.
-    
-    **Question de l'article** : {question}
-    
-    **Sections pertinentes du rapport du GIEC** : {consolidated_text}
-    
-    **Réponse** :
-    - **Résumé de la réponse** : (Donnez une réponse concise à la question)
-    - **Justification basée sur le rapport du GIEC** : (Citez et expliquez les éléments pertinents du rapport)
-    
-    """
-
-    prompt = PromptTemplate(template=prompt_template, input_variables=[
-                            "question", "consolidated_text"])
-    llm_chain = LLMChain(prompt=prompt, llm=llm)
-
-    mentions = comparer_questions_rapport(questions_df, llm_chain)
-
-    sauvegarder_mentions_csv(mentions, chemin_resultats_csv)
+    # Generate answers and save results
+    mentions = comparer_questions_rapport(questions_df, prompt_template)
+    df_mentions = pd.DataFrame(mentions)
+    df_mentions.to_csv(chemin_resultats_csv, index=False)
+    print(f"Mentions sauvegardées dans le fichier {chemin_resultats_csv}")
