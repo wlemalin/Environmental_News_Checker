@@ -31,20 +31,20 @@ def comparer_questions_rapport(questions, llm_chain):
             ID = row['id']
             question = row['question']
             resume_sections = row['resume_sections']
-            sections = row['sections']
+            sections_brutes = row['sections']
             
-            futures.append(executor.submit(trouver_sections_et_generer_reponse, question, resume_sections,
+            futures.append(executor.submit(trouver_sections_et_generer_reponse, question, resume_sections, sections_brutes,
                                            llm_chain, ID))
 
         # Récupérer les résultats
         for future in tqdm(futures, desc="Retrieving answers"):
             try:
-                question, resume_sections, generated_answer, ID = future.result()
+                question, resume_sections, generated_answer, ID, sections_brutes = future.result()
                 results.append({
                     "id": ID,
                     "question": question,
                     "sections_resumees": resume_sections,
-                    "retrieved_sections": sections,
+                    "retrieved_sections": sections_brutes,
                     "reponse": generated_answer
                 })
             except Exception as exc:
@@ -55,12 +55,12 @@ def comparer_questions_rapport(questions, llm_chain):
 # Fonction pour trouver les sections pertinentes et générer une réponse
 
 
-def trouver_sections_et_generer_reponse(question, sections, llm_chain, ID):
+def trouver_sections_et_generer_reponse(question, sections, sections_brutes, llm_chain, ID):
 
     generated_answer = rag_answer_generation_with_llmchain(
         question, sections, llm_chain)
 
-    return question, " ".join(sections), generated_answer, ID
+    return question, " ".join(sections), generated_answer, ID, sections_brutes
 
 # Main function to execute the RAG process
 
