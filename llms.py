@@ -24,6 +24,8 @@ from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 from llama_index.embeddings.ollama import OllamaEmbedding
 from sentence_transformers import util
 from tqdm import tqdm
+from langchain_ollama import OllamaLLM
+from langchain.schema.runnable import RunnableSequence  # Import the new pipeline sequence
 
 
 # Fonction pour configurer les modèles d'embeddings
@@ -419,3 +421,22 @@ def creer_prompt_resume():
 """
 
     return PromptTemplate(template=prompt_template_resume, input_variables=["question", "retrieved_sections"])
+
+def creer_llm_resume():
+    """
+    Creates and configures the LLM chain for summarization.
+    """
+    llm = OllamaLLM(model="llama3.2:3b-instruct-fp16")
+    prompt_template_resume = """
+    Votre tâche est d'extraire et de **lister uniquement** les faits les plus pertinents contenus dans les sections du rapport du GIEC en rapport avec la question posée. 
+    **Question posée** : {question}
+    **Sections associées** : {retrieved_sections}
+
+    Réponse sous forme de liste numérotée :
+    1. ...
+    2. ...
+    """
+    prompt = PromptTemplate(template=prompt_template_resume, input_variables=["question", "retrieved_sections"])
+    
+    # Use RunnableSequence for chaining the prompt and LLM
+    return RunnableSequence([prompt, llm])

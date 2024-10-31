@@ -189,7 +189,7 @@ def run_all_scripts():
     """
     run_script_1()
     run_script_2()
-    # run_script_3()
+    run_script_3()
     run_script_4()
     run_script_5()  # Create questions
     resume_sources()

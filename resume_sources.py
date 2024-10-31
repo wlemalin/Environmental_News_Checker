@@ -78,17 +78,29 @@ def creer_llm_resume():
 
 def generer_resume_parallel(df_questions, llm_chain_resume):
     """
-    Pour chaque question, résume les sections associées en utilisant le modèle LLM.
+    For each question, summarize each associated section individually using the LLM.
     """
     resultats = []
     with ThreadPoolExecutor(max_workers=6) as executor:
         futures = []
+        
+        # Iterate over each question and its associated sections
         for _, row in df_questions.iterrows():
-            futures.append(executor.submit(
-                generer_resume,
-                row['id'], row['question'], row['retrieved_sections'], llm_chain_resume
-            ))
+            question_id = row['id']
+            question_text = row['question']
+            retrieved_sections = row['retrieved_sections']  # List of sections for this question
+            
+            # For each section associated with the question, create a future for summarization
+            for section in retrieved_sections:
+                futures.append(executor.submit(
+                    generer_resume, 
+                    question_id, 
+                    question_text, 
+                    [section],  # Pass each section individually as a list
+                    llm_chain_resume
+                ))
 
+        # Collect results as they complete
         for future in tqdm(as_completed(futures), total=len(futures), desc="Résumés des sections"):
             try:
                 result = future.result()
@@ -96,70 +108,64 @@ def generer_resume_parallel(df_questions, llm_chain_resume):
             except Exception as exc:
                 print(f"Erreur lors du résumé d'une question : {exc}")
 
+    # Combine all results into a DataFrame for saving or further processing
     return pd.DataFrame(resultats)
 
 
 
-
-def generer_resume(phrase_id, question, retrieved_sections, llm_chain_resume):
+def generer_resume(phrase_id, question, section, llm_chain_resume):
     """
-    Generates the summary for each relevant section of a question using the LLM.
+    Generates the summary for a single section of a question using the LLM.
     """
-    # Lists to store the summaries and original sections
-    resumes = []
-    sections = []
+    # Generate the summary for the individual section with the given question context
+    response_resume = llm_chain_resume.invoke({
+        "question": question,
+        "retrieved_sections": section
+    })
 
-    for section in retrieved_sections:
-        # Generate the summary for each individual section
-        response_resume = llm_chain_resume.invoke({
-            "question": question,
-            "retrieved_sections": section
-        })
+    # Extract and clean up the generated summary text
+    resume = response_resume['text'].strip() if isinstance(
+        response_resume, dict) and "text" in response_resume else response_resume.strip()
 
-        resume = response_resume['text'].strip() if isinstance(
-            response_resume, dict) and "text" in response_resume else response_resume.strip()
-
-            
-
-        # Append each summary and original section to respective lists
-        resumes.append(resume)
-        sections.append(section)
-
-    # Return the results as a dictionary with ID, question, original sections, and list of section summaries
+    # Return the result as a dictionary with ID, question, original section, and the section summary
     return {
         "id": phrase_id,               # Add ID to the results
         "question": question,           # Add question to the results
-        "sections": sections,           # List of original sections
-        "resume_sections": resumes      # List of summaries for each relevant section
+        "section": section,             # The original section being summarized
+        "resume_section": resume        # Summary of the specific section in context of the question
     }
 
 
 
-
+# In the `process_resume` function
 def process_resume(chemin_csv_questions, chemin_rapport_embeddings, chemin_resultats_csv, top_k=3):
-    # Charger les données et le modèle
+    # Load data and embedding model
     df_questions, embeddings_rapport, sections_rapport, titles_rapport, embed_model = charger_donnees_et_modele(
         chemin_csv_questions, chemin_rapport_embeddings, top_k)
     
-    # Filtrer les sections pertinentes et obtenir un DataFrame avec retrieved_sections
+    # Filter relevant sections and get DataFrame with retrieved_sections
     df_questions = filtrer_sections_pertinentes(df_questions, embed_model, embeddings_rapport, sections_rapport, top_k)
     
-    # Configurer la LLM pour le résumé
-    prompt_llm_chain_resume = creer_prompt_resume()
-    
-    # Initialize the LLM (Ollama)
-    llm = Ollama(model="llama3.2:3b-instruct-fp16")
+    # Configure the LLM for summarization
+    llm_chain_resume = creer_llm_resume()  # This is now a RunnableSequence pipeline
 
-    # Create the LLM chain
-    llm_chain_resume = LLMChain(prompt=prompt_llm_chain_resume, llm=llm)
-
-    # Résumer les sections par question
+    # Summarize sections per question
     resultats = generer_resume_parallel(df_questions, llm_chain_resume)
-
-    # Sauvegarder les résultats
-    sauvegarder_resultats_resume(resultats, chemin_resultats_csv)
-    print(f"Résumés sauvegardés dans le fichier {chemin_resultats_csv}")
     
+    # Step 1: Clean the 'section' and 'resume_section' columns in 'resultats'
+    resultats['sections_resumees'] = resultats['sections_resumees'].apply(lambda x: x.strip('[]').replace('"', '').replace("'", "").strip())
+    resultats['retrieved_sections'] = resultats['retrieved_sections'].apply(lambda x: x.strip('[]').replace('"', '').replace("'", "").strip())
+
+    # Step 2: Group by 'id' and 'question' and aggregate 'sections_resumees' and 'retrieved_sections'
+    resultats_grouped = resultats.groupby(['id', 'question']).agg({
+        'sections_resumees': lambda x: ' '.join(x),   # Concatenate all 'sections_resumees' as a single string per group
+        'retrieved_sections': lambda x: ' '.join(x),  # Concatenate all 'retrieved_sections' as a single string per group
+        'reponse': 'first'                            # Keep the first response for each question
+    }).reset_index()
+
+    # Save results
+    sauvegarder_resultats_resume(resultats_grouped, chemin_resultats_csv)
+    print(f"Résumés sauvegardés dans le fichier {chemin_resultats_csv}")
     
     
     

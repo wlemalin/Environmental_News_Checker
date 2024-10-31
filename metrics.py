@@ -18,7 +18,8 @@ def evaluer_trois_taches_sur_phrase(phrase_id, question, current_phrase, section
     })
     exactitude = response_exactitude['text'].strip() if isinstance(
         response_exactitude, dict) and "text" in response_exactitude else response_exactitude.strip()
-
+    print(f"Réponse exactitude pour la phrase {current_phrase} : {exactitude}")
+    
     # Évaluation du biais
     response_biais = llm_chain_biais.invoke({
         "current_phrase": current_phrase,
@@ -26,6 +27,8 @@ def evaluer_trois_taches_sur_phrase(phrase_id, question, current_phrase, section
     })
     biais = response_biais['text'].strip() if isinstance(
         response_biais, dict) and "text" in response_biais else response_biais.strip()
+    
+    print(f"Réponse biais pour la ligne {current_phrase} : {biais}")
 
     # Évaluation du ton
     response_ton = llm_chain_ton.invoke({
@@ -34,6 +37,9 @@ def evaluer_trois_taches_sur_phrase(phrase_id, question, current_phrase, section
     })
     ton = response_ton['text'].strip() if isinstance(
         response_ton, dict) and "text" in response_ton else response_ton.strip()
+    
+    
+    print(f"Réponse ton pour la phrase {current_phrase} : {ton}")
 
     # Retourner les résultats pour cette phrase avec id et question
     return {
@@ -48,7 +54,7 @@ def evaluer_trois_taches_sur_phrase(phrase_id, question, current_phrase, section
 
 
 # Fonction pour évaluer l'exactitude, le biais et le ton des phrases avec un seul modèle LLM et différents prompts
-def evaluer_phrase_trois_taches(rag_df, llm_chain_exactitude, llm_chain_biais, llm_chain_ton):
+def evaluer_phrase_parallele(rag_df, llm_chain_exactitude, llm_chain_biais, llm_chain_ton):
     results = []
 
     # Utilisation de ThreadPoolExecutor pour exécuter plusieurs évaluations en parallèle
@@ -103,7 +109,7 @@ def process_evaluation(rag_csv, resultats_csv):
     llm_chain_ton = LLMChain(prompt=PromptTemplate(template=prompt_ton, input_variables=["current_phrase", "sections_resumees"]), llm=llm)
 
     # Evaluate phrases for accuracy, bias, and tone
-    resultats = evaluer_phrase_trois_taches(rag_df, llm_chain_exactitude, llm_chain_biais, llm_chain_ton)
+    resultats = evaluer_phrase_parallele(rag_df, llm_chain_exactitude, llm_chain_biais, llm_chain_ton)
 
     # Save results
     sauvegarder_resultats_evaluation(resultats, resultats_csv)

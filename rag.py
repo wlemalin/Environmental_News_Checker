@@ -1,5 +1,4 @@
 from concurrent.futures import ThreadPoolExecutor
-
 from langchain import LLMChain, PromptTemplate
 from langchain.chains import LLMChain
 from langchain_ollama import OllamaLLM
@@ -10,7 +9,7 @@ from file_utils import charger_questions, sauvegarder_mentions_csv
 
 # Fonction pour générer des réponses avec Llama3.2 et les sections du rapport
 def rag_answer_generation_with_llmchain(question, relevant_sections, llm_chain):
-    context = " ".join(relevant_sections)
+    context = relevant_sections
     inputs = {
         "question": question,
         "consolidated_text": context
@@ -34,18 +33,18 @@ def comparer_questions_rapport(questions, llm_chain):
             resume_sections = row['resume_sections']
             sections = row['sections']
             
-            futures.append(executor.submit(trouver_sections_et_generer_reponse, question, sections,
+            futures.append(executor.submit(trouver_sections_et_generer_reponse, question, resume_sections,
                                            llm_chain, ID))
 
         # Récupérer les résultats
         for future in tqdm(futures, desc="Retrieving answers"):
             try:
-                question, retrieved_sections, generated_answer, ID = future.result()
+                question, resume_sections, generated_answer, ID = future.result()
                 results.append({
                     "id": ID,
                     "question": question,
                     "sections_resumees": resume_sections,
-                    "retrieved_sections": retrieved_sections,
+                    "retrieved_sections": sections,
                     "reponse": generated_answer
                 })
             except Exception as exc:
