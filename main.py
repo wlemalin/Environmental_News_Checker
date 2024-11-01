@@ -10,22 +10,23 @@ Ce script effectue plusieurs tâches liées au traitement de texte et à l'intel
 4. Vérification des faits avec un modèle LLM (Llama) : Génération de réponses basées sur les sections extraites du rapport en utilisant un modèle de type RAG (Retrieve-and-Generate).
 """
 
-from nltk.tokenize import sent_tokenize
 import nltk
 import pandas as pd
-from langchain import LLMChain, PromptTemplate
-from langchain.chains import LLMChain
-from langchain.llms import Ollama
+from langchain import PromptTemplate
+from langchain_ollama import OllamaLLM  # Updated import for Ollama
+from nltk.tokenize import sent_tokenize
+
 from file_utils import save_to_csv
 from llms import (analyze_paragraphs_parallel, create_questions_llm,
-                  generate_questions_parallel, parsed_responses)
+                  generate_questions_parallel)
+from metrics import process_evaluation
 from pdf_processing import process_pdf_to_index
-
+from prompt import creer_prompt_topic_id
+from reponse import process_reponses
+from resume_sources import process_resume
 from topic_classifier import generate_context_windows, keywords_for_each_chunk
 from txt_manipulation import decouper_en_phrases, pretraiter_article
-from resume_sources import process_resume
-from reponse import process_reponses
-from metrics import process_evaluation
+
 
 def run_script_1():
     """
@@ -80,72 +81,34 @@ def run_script_3():
 
 
 def run_script_4():
-    nltk.download('punkt')  # Téléchargez le modèle de tokenisation des phrases
+    nltk.download('punkt')  # Download sentence tokenization model
 
-    # Initialize the LLM (Ollama)
-    llm = Ollama(model="llama3.2:3b-instruct-fp16")
+    # Initialize the LLM with the updated class
+    llm = OllamaLLM(model="llama3.2:3b-instruct-fp16")
 
-    # Define the improved prompt template for LLM climate analysis in French with detailed instructions
-    prompt_template = """
-    Vous êtes un expert chargé d'identifier tous les sujets abordés dans le texte suivant, qu'ils soient ou non liés à l'environnement, au changement climatique ou au réchauffement climatique.
-    
-    Phrase : {current_phrase}
-    context : {context}
-    
-    1. Si le texte mentionne de près ou de loin l'environnement, le changement climatique, le réchauffement climatique, ou des organisations, événements ou accords liés à ces sujets (par exemple le GIEC, les conférences COP, les accords de Paris, etc.), répondez '1'. Sinon, répondez '0'.
-    2. Listez **tous** les sujets abordés dans le texte, y compris ceux qui ne sont pas liés à l'environnement ou au climat.
-    
-    Format de réponse attendu :
-    - Réponse binaire (0 ou 1) : [Réponse]
-    - Liste des sujets abordés : [Sujet 1, Sujet 2, ...]
-    
-    Exemple de réponse :
-    - Réponse binaire (0 ou 1) : 1
-    - Liste des sujets abordés : [Incendies, gestion des forêts, réchauffement climatique, économie locale, GIEC]
-    """
-
+    # Define the prompt template for LLM climate analysis in French with detailed instructions
+    prompt_template = creer_prompt_topic_id()
     prompt = PromptTemplate(template=prompt_template, input_variables=[
                             "current_phrase", "context"])
 
-    # Create the LLM chain
-    llm_chain = LLMChain(prompt=prompt, llm=llm)
+    # Directly chain prompt with llm
+    llm_chain = prompt | llm  # Simplified without needing RunnableSequence
 
-    # Chemin vers le fichier texte
-    file_path = "/Users/mateodib/Desktop/Environmental_News_Checker-main/_ _ C_est plus confortable de se dire que ce n_est pas si grave __cleaned_cleaned.txt"
-
-    # Charger et regrouper le texte en phrases
+    file_path = "_ _ C_est plus confortable de se dire que ce n_est pas si grave __cleaned_cleaned.txt"
     with open(file_path, 'r', encoding='utf-8') as f:
         text = f.read()
 
-    sentences = sent_tokenize(text)  # Divise le texte en phrases
-
+    sentences = sent_tokenize(text)  # Split text into sentences
     splitted_text = generate_context_windows(sentences)
 
-    # Analyser les paragraphes avec Llama 3.2 en parallèle
+# Analyze paragraphs in parallel with Llama 3.2
     analysis_results = analyze_paragraphs_parallel(splitted_text, llm_chain)
 
-    # Sauvegarder les résultats dans un fichier CSV
+# Save the results to a CSV file
     df = pd.DataFrame(analysis_results)
     output_path = "/Users/mateodib/Desktop/Environmental_News_Checker-main/climate_analysis_results.csv"
     df.to_csv(output_path, index=False)
     print(f"Results saved to {output_path}")
-
-
-
-    # Conversion de la liste en DataFrame
-    analysis_results_df = pd.DataFrame(analysis_results)
-
-    # Appliquer la méthode de parsing au DataFrame
-    parsed_df_improved = parsed_responses(analysis_results_df)
-
-    # Sauvegarder le DataFrame avec les résultats parsés
-    output_path_improved = "/Users/mateodib/Desktop/Environmental_News_Checker-main/final_climate_analysis_results_improved.csv"
-    parsed_df_improved['subjects'] = parsed_df_improved['subjects'].apply(
-        lambda x: ', '.join(x))
-    parsed_df_improved.to_csv(output_path_improved, index=False)
-
-    # Affichage de quelques lignes du DataFrame final
-    print(parsed_df_improved.head())
 
 
 def run_script_5():
@@ -172,10 +135,13 @@ def run_script_5():
 
 
 def resume_sources():
-    chemin_csv_questions = "/Users/mateodib/Desktop/Environmental_News_Checker-main/final_climate_analysis_with_questions.csv" # final_climate_analysis_with_questions.csv TODO
+    # final_climate_analysis_with_questions.csv TODO
+    chemin_csv_questions = "/Users/mateodib/Desktop/Environmental_News_Checker-main/final_climate_analysis_with_questions.csv"
     chemin_resultats_csv = "/Users/mateodib/Desktop/Environmental_News_Checker-main/resume_sections_results.csv"
     chemin_rapport_embeddings = "/Users/mateodib/Desktop/Environmental_News_Checker-main/rapport_indexed.json"
-    process_resume(chemin_csv_questions, chemin_rapport_embeddings, chemin_resultats_csv, 5) # Top-K = 5
+    process_resume(chemin_csv_questions, chemin_rapport_embeddings,
+                   chemin_resultats_csv, 5)  # Top-K = 5
+
 
 def run_script_6():
     chemin_questions_csv = "/Users/mateodib/Desktop/Environmental_News_Checker-main/resume_sections_results.csv"
@@ -249,6 +215,3 @@ if __name__ == "__main__":
             run_all_scripts()
         case _:
             print("Invalid choice. Please choose a valid option.")
-
-
-

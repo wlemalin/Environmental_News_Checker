@@ -19,12 +19,13 @@ import pandas as pd
 import tqdm
 from langchain import LLMChain, PromptTemplate
 from langchain.llms import Ollama
-from langchain_ollama import OllamaLLM
+from langchain.prompts import PromptTemplate
+from langchain_ollama import OllamaLLM  # Updated import for Ollama
 from llama_index.core import Settings
 from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 from llama_index.embeddings.ollama import OllamaEmbedding
 from sentence_transformers import util
-from tqdm import tqdm
+from tqdm import tqdm  # To show progress bars
 
 
 # Fonction pour configurer les modèles d'embeddings
@@ -135,51 +136,56 @@ def comparer_article_rapport_with_rag(phrases_article: list[str], embeddings_rap
     return mentions
 
 
-# Fonction pour analyser un paragraphe avec Llama 3.2
+# Function to analyze a paragraph with the LLM
 def analyze_paragraph_with_llm(current_phrase, context, llm_chain):
-    # Créer un seul dictionnaire avec les deux clés
+    # Create a single dictionary with the required keys
     inputs = {"current_phrase": current_phrase, "context": context}
 
-    # Appeler le LLM avec les inputs
+    # Call the LLM with the inputs
     response = llm_chain.invoke(inputs)
 
     if isinstance(response, dict) and "text" in response:
         return response["text"].strip()
     return response.strip()
 
+# Function to manage parallel analysis of paragraphs
 
-# Fonction pour gérer l'analyse des paragraphes en parallèle
+
 def analyze_paragraphs_parallel(splitted_text, llm_chain):
     results = []
 
-    # Utilisation de ThreadPoolExecutor pour le traitement parallèle
+    # Use ThreadPoolExecutor for parallel processing
     with concurrent.futures.ThreadPoolExecutor(max_workers=14) as executor:
-        # Créez une tâche pour chaque entrée de splitted_text (chaque phrase avec son contexte et son index)
-        futures = {executor.submit(
-            analyze_paragraph_with_llm, entry["current_phrase"], entry["context"], llm_chain): entry for entry in splitted_text}
+        # Create a task for each entry in splitted_text
+        futures = {
+            executor.submit(
+                analyze_paragraph_with_llm, entry["current_phrase"], entry["context"], llm_chain
+            ): entry for entry in splitted_text
+        }
 
-        # Parcourir les résultats à mesure qu'ils sont terminés
+        # Iterate over completed results
         for future in tqdm(concurrent.futures.as_completed(futures), total=len(futures), desc="Analyzing paragraphs"):
             entry = futures[future]
             current_phrase = entry["current_phrase"]
             context = entry["context"]
-            index = entry["id"]  # Récupération de l'index
+            index = entry["id"]  # Retrieve the index
 
             try:
-                # Obtenir le résultat de l'analyse
+                # Get the analysis result
                 analysis = future.result()
 
-                # Enregistrer l'index, la phrase, le contexte et la réponse du LLM dans le résultat
+                # Save index, phrase, context, and LLM response to the result
                 results.append({
-                    "id": index,  # Ajout de l'index dans les résultats
+                    "id": index,  # Add index to results
                     "current_phrase": current_phrase,
                     "context": context,
                     "climate_related": analysis
                 })
 
-                # Affichage après chaque analyse
+                # Print after each analysis for debugging
                 print(
-                    f"ID: {index}\nPhrase:\n{current_phrase}\nContext:\n{context}\nLLM Response: {analysis}\n")
+                    f"ID: {index}\nPhrase:\n{current_phrase}\nContext:\n{context}\nLLM Response: {analysis}\n"
+                )
 
             except Exception as exc:
                 print(
