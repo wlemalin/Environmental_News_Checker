@@ -5,11 +5,24 @@ from langchain_ollama import OllamaLLM
 from tqdm import tqdm
 from prompt import creer_prompts_metrics
 
-    
-
 # Function to evaluate a phrase for accuracy, bias, and tone
 def evaluer_trois_taches_sur_phrase(phrase_id, question, current_phrase, sections_resumees,
                                     llm_sequence_exactitude, llm_sequence_biais, llm_sequence_ton):
+    """
+    Evaluates a given phrase on three different metrics: accuracy, bias, and tone.
+
+    Parameters:
+    - phrase_id (int): The identifier for the phrase being evaluated.
+    - question (str): The question related to the current phrase.
+    - current_phrase (str): The phrase to be evaluated.
+    - sections_resumees (str): Summarized sections used as context for evaluation.
+    - llm_sequence_exactitude (RunnableSequence): Chain of prompt template and LLM for accuracy evaluation.
+    - llm_sequence_biais (RunnableSequence): Chain of prompt template and LLM for bias evaluation.
+    - llm_sequence_ton (RunnableSequence): Chain of prompt template and LLM for tone evaluation.
+
+    Returns:
+    - dict: A dictionary containing the evaluation results for accuracy, bias, and tone for the given phrase.
+    """
     # Evaluate accuracy
     response_exactitude = llm_sequence_exactitude.invoke({
         "current_phrase": current_phrase,
@@ -44,6 +57,18 @@ def evaluer_trois_taches_sur_phrase(phrase_id, question, current_phrase, section
 
 # Function to parallelize evaluation of phrases for each metric with shared LLMs
 def evaluer_phrase_parallele(rag_df, llm_sequence_exactitude, llm_sequence_biais, llm_sequence_ton):
+    """
+    Evaluates multiple phrases in parallel for accuracy, bias, and tone using shared LLM models.
+
+    Parameters:
+    - rag_df (DataFrame): A pandas DataFrame containing phrases and contextual information for evaluation.
+    - llm_sequence_exactitude (RunnableSequence): Chain of prompt template and LLM for accuracy evaluation.
+    - llm_sequence_biais (RunnableSequence): Chain of prompt template and LLM for bias evaluation.
+    - llm_sequence_ton (RunnableSequence): Chain of prompt template and LLM for tone evaluation.
+
+    Returns:
+    - DataFrame: A pandas DataFrame containing the evaluation results for each phrase.
+    """
     results = []
     with ThreadPoolExecutor(max_workers=3) as executor:  # Adjusted max_workers to 3 for M2
         futures = []
@@ -73,19 +98,27 @@ def evaluer_phrase_parallele(rag_df, llm_sequence_exactitude, llm_sequence_biais
 
 # Main function to run the evaluation process
 def process_evaluation(chemin_questions_csv, rag_csv, resultats_csv):
+    """
+    Main function that orchestrates the evaluation process of phrases.
+
+    Parameters:
+    - chemin_questions_csv (str): Path to the CSV file containing questions and phrases to be evaluated.
+    - rag_csv (str): Path to the CSV file containing RAG information including summarized sections.
+    - resultats_csv (str): Path where the evaluation results CSV file should be saved.
+
+    Workflow:
+    1. Reads input CSVs and merges relevant data.
+    2. Initializes an LLM model and creates evaluation chains for accuracy, bias, and tone.
+    3. Evaluates each phrase for accuracy, bias, and tone using parallel processing.
+    4. Saves the evaluation results to a CSV file.
+    """
     rag_df = pd.read_csv(rag_csv)
     questions_df = pd.read_csv(chemin_questions_csv, usecols=['id', 'current_phrase'])
-    
-    # Merge rag_df with questions_df on 'id'
     rag_df = rag_df.merge(questions_df, on='id', how='left')
     
     # Initialize LLM model once and create chains for each evaluation task
     llm = OllamaLLM(model="llama3.2:3b-instruct-fp16")
-    
-    # Create prompt templates for each task
     prompt_exactitude, prompt_biais, prompt_ton = creer_prompts_metrics()
-    
-    # Create RunnableSequences for each task using shared LLM instance
     llm_sequence_exactitude = PromptTemplate(template=prompt_exactitude, input_variables=["current_phrase", "sections_resumees"]) | llm
     llm_sequence_biais = PromptTemplate(template=prompt_biais, input_variables=["current_phrase", "sections_resumees"]) | llm
     llm_sequence_ton = PromptTemplate(template=prompt_ton, input_variables=["current_phrase", "sections_resumees"]) | llm

@@ -11,6 +11,16 @@ from prompt import creer_llm_resume
 
 
 def charger_donnees_et_modele(chemin_csv_questions, chemin_rapport_embeddings):
+    """
+    Loads the questions data from a CSV file and report embeddings from the specified file.
+
+    Args:
+        chemin_csv_questions (str): Path to the CSV file containing the questions.
+        chemin_rapport_embeddings (str): Path to the file containing the report embeddings.
+
+    Returns:
+        tuple: A tuple containing the DataFrame of questions, report embeddings, report sections, report titles, and the embedding model.
+    """
     # Charger les questions
     df_questions = pd.read_csv(chemin_csv_questions)
     print(f"Questions loaded. Total: {len(df_questions)}")
@@ -42,6 +52,19 @@ def charger_donnees_et_modele(chemin_csv_questions, chemin_rapport_embeddings):
 
 
 def filtrer_sections_pertinentes(df_questions, embed_model, embeddings_rapport, sections_rapport, top_k=5):
+    """
+    Filters the most relevant sections of the report for each question based on cosine similarity.
+
+    Args:
+        df_questions (DataFrame): DataFrame containing the questions.
+        embed_model: Embedding model used to generate embeddings for the questions.
+        embeddings_rapport (list): List of embeddings for the report sections.
+        sections_rapport (list): List of report sections.
+        top_k (int, optional): The number of most similar sections to retrieve for each question. Default is 5.
+
+    Returns:
+        DataFrame: DataFrame with an additional column containing the retrieved relevant sections for each question.
+    """
     retrieved_sections_list = []
 
     for _, row in df_questions.iterrows():
@@ -64,7 +87,14 @@ def filtrer_sections_pertinentes(df_questions, embed_model, embeddings_rapport, 
 
 def generer_resume_parallel(df_questions, llm_chain_resume):
     """
-    For each question, summarize each associated section individually using the LLM.
+    Summarizes each associated section of each question in parallel using the LLM.
+
+    Args:
+        df_questions (DataFrame): DataFrame containing questions and their retrieved sections.
+        llm_chain_resume: LLM chain for generating section summaries.
+
+    Returns:
+        DataFrame: DataFrame containing question IDs, questions, original sections, and their corresponding summaries.
     """
     resultats = []
     with ThreadPoolExecutor(max_workers=6) as executor:
@@ -97,7 +127,16 @@ def generer_resume_parallel(df_questions, llm_chain_resume):
 
 def generer_resume(phrase_id, question, section, llm_chain_resume):
     """
-    Generates the summary for a single section of a question using the LLM.
+    Generates a summary for a single section of a question using the LLM.
+
+    Args:
+        phrase_id (int): The unique identifier for the question.
+        question (str): The question context for generating the summary.
+        section (str): The specific section of the report to summarize.
+        llm_chain_resume: LLM chain used for summarization.
+
+    Returns:
+        dict: A dictionary containing the question ID, question text, original section, and the section summary.
     """
     # Generate the summary for the individual section with the given question context
     response_resume = llm_chain_resume.invoke({
@@ -118,6 +157,22 @@ def generer_resume(phrase_id, question, section, llm_chain_resume):
 
 
 def process_resume(chemin_csv_questions, chemin_rapport_embeddings, chemin_resultats_csv, top_k=3):
+    """
+    Executes the full process of loading questions, filtering relevant sections, summarizing sections, and saving results to a CSV file.
+
+    Args:
+        chemin_csv_questions (str): Path to the CSV file containing the questions.
+        chemin_rapport_embeddings (str): Path to the file containing report embeddings.
+        chemin_resultats_csv (str): Path to the output CSV file where results will be saved.
+        top_k (int, optional): The number of most similar sections to retrieve for each question. Default is 3.
+
+    Workflow:
+        1. Load questions and report embeddings.
+        2. Filter the most relevant sections for each question.
+        3. Summarize the relevant sections for each question in parallel.
+        4. Group results by question ID to create a consolidated summary.
+        5. Save the consolidated summaries to an output CSV file.
+    """
     # Charger les données et le modèle
     df_questions, embeddings_rapport, sections_rapport, _, embed_model = charger_donnees_et_modele(
         chemin_csv_questions, chemin_rapport_embeddings)

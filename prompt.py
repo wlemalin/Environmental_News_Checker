@@ -192,3 +192,32 @@ def creer_llm_resume(model_name="llama3.2:3b-instruct-fp16"):
 
     # Use pipe to create a chain where prompt output feeds into the LLM
     return llm_chain
+
+
+def creer_prompt_reponses():
+    # Initialize LLM with the specified model
+    llm = OllamaLLM(model="llama3.2:3b-instruct-fp16")
+
+    # Define the prompt for the LLM
+    prompt_template = """
+    Vous êtes un expert en climatologie. Répondez à la question ci-dessous en vous basant uniquement sur les sections pertinentes du rapport du GIEC.
+
+    **Instructions** :
+    1. Utilisez les informations des sections pour formuler une réponse précise et fondée.
+    2. Justifiez votre réponse en citant les sections, si nécessaire.
+    3. Limitez votre réponse aux informations fournies dans les sections.
+
+    **Question** : {question}
+    
+    **Sections du rapport** : {consolidated_text}
+    
+    **Réponse** :
+    - **Résumé de la réponse** : (Réponse concise)
+    - **Justification basée sur le rapport** : (Citez et expliquez les éléments pertinents)
+    """
+
+    prompt = PromptTemplate(template=prompt_template, input_variables=[
+                            "question", "consolidated_text"])
+    llm_chain = prompt | llm  # Using simplified chaining without LLMChain
+
+    return llm_chain
