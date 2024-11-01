@@ -7,6 +7,7 @@ from langchain import LLMChain, PromptTemplate
 from langchain_ollama import OllamaLLM
 from sentence_transformers import SentenceTransformer, util
 from tqdm import tqdm
+from llms import creer_llm_resume
 
 from embeddings_creation import embed_texts, generer_embeddings_rapport
 
@@ -61,23 +62,6 @@ def filtrer_sections_pertinentes(df_questions, embed_model, embeddings_rapport, 
     # Ajouter les sections retrouvées comme nouvelle colonne
     df_questions['retrieved_sections'] = retrieved_sections_list
     return df_questions
-
-
-def creer_llm_resume():
-    """
-    Crée et configure la chaîne LLM pour le résumé.
-    """
-    llm = OllamaLLM(model="llama3.2:3b-instruct-fp16")
-    prompt_template_resume = """
-    Votre tâche est d'extraire et de **lister uniquement** les faits les plus pertinents contenus dans les sections du rapport du GIEC en rapport avec la question posée. 
-    **Question posée** : {question}
-    **Sections associées** : {retrieved_sections}
-
-    Réponse sous forme de liste numérotée :
-    1. ...
-    2. ...
-    """
-    return LLMChain(prompt=PromptTemplate(template=prompt_template_resume, input_variables=["question", "retrieved_sections"]), llm=llm)
 
 
 def generer_resume_parallel(df_questions, llm_chain_resume):
