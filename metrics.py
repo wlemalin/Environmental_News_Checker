@@ -72,12 +72,9 @@ def evaluer_phrase_parallele(rag_df, llm_sequence_exactitude, llm_sequence_biais
     return pd.DataFrame(results)
 
 # Main function to run the evaluation process
-def process_evaluation(rag_csv, resultats_csv):
-    # Load rag_results.csv
+def process_evaluation(chemin_questions_csv, rag_csv, resultats_csv):
     rag_df = pd.read_csv(rag_csv)
-    
-    # Load final_climate_analysis_with_questions.csv to get "current_phrase" column
-    questions_df = pd.read_csv("/Users/mateodib/Desktop/Environmental_News_Checker-Mateo/final_climate_analysis_with_questions.csv", usecols=['id', 'current_phrase'])
+    questions_df = pd.read_csv(chemin_questions_csv, usecols=['id', 'current_phrase'])
     
     # Merge rag_df with questions_df on 'id'
     rag_df = rag_df.merge(questions_df, on='id', how='left')

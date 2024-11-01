@@ -2,8 +2,8 @@ import nltk
 import pandas as pd
 from nltk import sent_tokenize
 
-from llms import (analyze_paragraphs_parallel, parsed_responses,
-                  prompt_selection_phrase_pertinente)
+from llms import (analyze_paragraphs_parallel, parsed_responses)
+from prompt import prompt_selection_phrase_pertinente
 from topic_classifier import generate_context_windows
 
 

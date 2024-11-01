@@ -1,6 +1,7 @@
 import pandas as pd
 
-from llms import create_questions_llm, generate_questions_parallel
+from llms import generate_questions_parallel
+from prompt import create_questions_llm
 
 
 def question_generation_process(file_path, output_path_questions):

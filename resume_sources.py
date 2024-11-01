@@ -7,7 +7,7 @@ from sentence_transformers import SentenceTransformer, util
 from tqdm import tqdm
 
 from embeddings_creation import embed_texts, generer_embeddings_rapport
-from llms import creer_llm_resume
+from prompt import creer_llm_resume
 
 
 def charger_donnees_et_modele(chemin_csv_questions, chemin_rapport_embeddings):

@@ -104,7 +104,8 @@ def evaluate_generated_responses():
     """
     rag_csv = "/Users/mateodib/Desktop/Environmental_News_Checker-Mateo/rag_results.csv"
     resultats_csv = "/Users/mateodib/Desktop/Environmental_News_Checker-Mateo/evaluation_results.csv"
-    process_evaluation(rag_csv, resultats_csv)
+    chemin_questions_csv = "/Users/mateodib/Desktop/Environmental_News_Checker-Mateo/final_climate_analysis_with_questions.csv"
+    process_evaluation(chemin_questions_csv, rag_csv, resultats_csv)
 
 
 def run_full_processing_pipeline():
