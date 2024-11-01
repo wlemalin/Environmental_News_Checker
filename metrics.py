@@ -3,9 +3,9 @@ import pandas as pd
 from langchain import PromptTemplate
 from langchain_ollama import OllamaLLM
 from tqdm import tqdm
-from prompt import creer_prompts_metrics
 
-# Function to evaluate a phrase for accuracy, bias, and tone
+
+# Function to evaluate a phrase for accuracy, bias, and tone using distinct LLMs and prompts
 def evaluer_trois_taches_sur_phrase(phrase_id, question, current_phrase, sections_resumees,
                                     llm_sequence_exactitude, llm_sequence_biais, llm_sequence_ton):
     """
@@ -23,21 +23,22 @@ def evaluer_trois_taches_sur_phrase(phrase_id, question, current_phrase, section
     Returns:
     - dict: A dictionary containing the evaluation results for accuracy, bias, and tone for the given phrase.
     """
-    # Evaluate accuracy
+    
+    # Evaluate accuracy with its own LLM and prompt
     response_exactitude = llm_sequence_exactitude.invoke({
         "current_phrase": current_phrase,
         "sections_resumees": sections_resumees
     })
     exactitude = response_exactitude['text'].strip() if isinstance(response_exactitude, dict) else response_exactitude.strip()
     
-    # Evaluate bias
+    # Evaluate bias with its own LLM and prompt
     response_biais = llm_sequence_biais.invoke({
         "current_phrase": current_phrase,
         "sections_resumees": sections_resumees
     })
     biais = response_biais['text'].strip() if isinstance(response_biais, dict) else response_biais.strip()
     
-    # Evaluate tone
+    # Evaluate tone with its own LLM and prompt
     response_ton = llm_sequence_ton.invoke({
         "current_phrase": current_phrase,
         "sections_resumees": sections_resumees
@@ -55,10 +56,10 @@ def evaluer_trois_taches_sur_phrase(phrase_id, question, current_phrase, section
         "ton": ton
     }
 
-# Function to parallelize evaluation of phrases for each metric with shared LLMs
+# Function to parallelize evaluation of phrases for each metric with distinct LLMs
 def evaluer_phrase_parallele(rag_df, llm_sequence_exactitude, llm_sequence_biais, llm_sequence_ton):
     """
-    Evaluates multiple phrases in parallel for accuracy, bias, and tone using shared LLM models.
+    Evaluates multiple phrases in parallel for accuracy, bias, and tone using distinct LLM models.
 
     Parameters:
     - rag_df (DataFrame): A pandas DataFrame containing phrases and contextual information for evaluation.
@@ -79,7 +80,7 @@ def evaluer_phrase_parallele(rag_df, llm_sequence_exactitude, llm_sequence_biais
             current_phrase = row['current_phrase']
             sections_resumees = row['sections_resumees']
             
-            # Submit evaluation for exactitude, biais, and ton with shared LLMs
+            # Submit evaluation for exactitude, biais, and ton with distinct LLMs
             futures.append(executor.submit(
                 evaluer_trois_taches_sur_phrase,
                 phrase_id, question, current_phrase, sections_resumees,
@@ -96,7 +97,7 @@ def evaluer_phrase_parallele(rag_df, llm_sequence_exactitude, llm_sequence_biais
     
     return pd.DataFrame(results)
 
-# Main function to run the evaluation process
+# Main function to run the evaluation process with distinct LLMs for each metric
 def process_evaluation(chemin_questions_csv, rag_csv, resultats_csv):
     """
     Main function that orchestrates the evaluation process of phrases.
@@ -108,20 +109,29 @@ def process_evaluation(chemin_questions_csv, rag_csv, resultats_csv):
 
     Workflow:
     1. Reads input CSVs and merges relevant data.
-    2. Initializes an LLM model and creates evaluation chains for accuracy, bias, and tone.
+    2. Initializes LLMs and creates evaluation chains for accuracy, bias, and tone.
     3. Evaluates each phrase for accuracy, bias, and tone using parallel processing.
     4. Saves the evaluation results to a CSV file.
     """
+    # Load data
     rag_df = pd.read_csv(rag_csv)
     questions_df = pd.read_csv(chemin_questions_csv, usecols=['id', 'current_phrase'])
     rag_df = rag_df.merge(questions_df, on='id', how='left')
     
-    # Initialize LLM model once and create chains for each evaluation task
-    llm = OllamaLLM(model="llama3.2:3b-instruct-fp16")
-    prompt_exactitude, prompt_biais, prompt_ton = creer_prompts_metrics()
-    llm_sequence_exactitude = PromptTemplate(template=prompt_exactitude, input_variables=["current_phrase", "sections_resumees"]) | llm
-    llm_sequence_biais = PromptTemplate(template=prompt_biais, input_variables=["current_phrase", "sections_resumees"]) | llm
-    llm_sequence_ton = PromptTemplate(template=prompt_ton, input_variables=["current_phrase", "sections_resumees"]) | llm
+    # Initialize separate LLMs for each metric
+    llm_exactitude = OllamaLLM(model="llama3.2:3b-instruct-fp16")
+    llm_biais = OllamaLLM(model="llama3.2:3b-instruct-fp16")
+    llm_ton = OllamaLLM(model="llama3.2:3b-instruct-fp16")
+    
+    # Define distinct prompts for each metric
+    prompt_exactitude = PromptTemplate(template="Evaluate accuracy: {current_phrase} in context: {sections_resumees}", input_variables=["current_phrase", "sections_resumees"])
+    llm_sequence_exactitude = prompt_exactitude | llm_exactitude
+    
+    prompt_biais = PromptTemplate(template="Evaluate bias: {current_phrase} in context: {sections_resumees}", input_variables=["current_phrase", "sections_resumees"])
+    llm_sequence_biais = prompt_biais | llm_biais
+    
+    prompt_ton = PromptTemplate(template="Evaluate tone: {current_phrase} in context: {sections_resumees}", input_variables=["current_phrase", "sections_resumees"])
+    llm_sequence_ton = prompt_ton | llm_ton
     
     # Evaluate each phrase for accuracy, bias, and tone
     resultats = evaluer_phrase_parallele(rag_df, llm_sequence_exactitude, llm_sequence_biais, llm_sequence_ton)

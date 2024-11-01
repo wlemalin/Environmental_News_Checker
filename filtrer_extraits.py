@@ -32,7 +32,6 @@ def identifier_extraits_sur_giec(file_path, output_path, output_path_improved):
     # Sauvegarder le DataFrame avec les résultats parsés
     parsed_df_improved['subjects'] = parsed_df_improved['subjects'].apply(
         lambda x: ', '.join(x))
-    parsed_df_improved = parsed_df_improved.head(3)
     parsed_df_improved.to_csv(output_path_improved, index=False)
 
     # Affichage de quelques lignes du DataFrame final

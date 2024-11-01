@@ -92,7 +92,6 @@ def process_reponses(chemin_questions_csv, chemin_resultats_csv):
         5. Print a confirmation message indicating where the results have been saved.
     """
     questions_df = pd.read_csv(chemin_questions_csv)
-
     llm_chain = creer_prompt_reponses()
 
     # Generate answers and save them to CSV
