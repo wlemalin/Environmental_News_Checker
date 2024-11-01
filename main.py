@@ -154,17 +154,20 @@ if __name__ == "__main__":
         case "5":
             print("You chose Option 5")
             generate_questions()
-        case "9":
-            print("You chose Option 8")
-            summarize_source_sections()
         case "6":
             print("You chose Option 6")
-            generate_rag_responses()
+            summarize_source_sections()
         case "7":
             print("You chose Option 7")
-            evaluate_generated_responses()
+            generate_rag_responses()
         case "8":
+            print("You chose Option 8")
+            evaluate_generated_responses()
+        case "9":
             print("You chose option 9.")
             run_full_processing_pipeline()
         case _:
             print("Invalid choice. Please choose a valid option.")
+            
+            
+            

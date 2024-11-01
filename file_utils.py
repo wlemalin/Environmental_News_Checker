@@ -14,9 +14,7 @@ Fonctionnalités principales :
 import csv
 import json
 import os
-
 import pandas as pd
-
 from txt_manipulation import parse_llm_response
 
 

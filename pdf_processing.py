@@ -11,7 +11,7 @@ Fonctionnalités principales :
 """
 import json
 from pdfminer.high_level import extract_text
-from txt_manipulation import clean_text, split_text_by_sections
+from txt_manipulation import clean_text, split_text_into_chunks
 
 
 # Pipeline principal de traitement
@@ -31,7 +31,7 @@ def process_pdf_to_index(chemin_rapport_pdf: str, chemin_output_json: str) -> No
     cleaned_text = clean_text(raw_text)
 
     # Découpage du texte en sections
-    sections = split_text_by_sections(cleaned_text)
+    sections = split_text_into_chunks(cleaned_text)
 
     # Sauvegarde des sections dans le fichier de sortie JSON
     with open(chemin_output_json, 'w', encoding='utf-8') as f:

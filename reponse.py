@@ -1,8 +1,6 @@
 from concurrent.futures import ThreadPoolExecutor, as_completed
-
 import pandas as pd
 from tqdm import tqdm
-
 from prompt import creer_prompt_reponses
 
 # Compare questions to the summarized report sections

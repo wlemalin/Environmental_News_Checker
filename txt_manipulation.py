@@ -90,31 +90,46 @@ def clean_text(text: str) -> str:
     return text
 
 
-# Fonction pour découper le texte en sections
-def split_text_by_sections(text: str) -> list[dict]:
+# Function to split text into optimized chunks using NLTK for sentence tokenization
+def split_text_into_chunks(text: str, max_tokens: int = 382) -> list[dict]:
     """
-    Découpe un texte en sections à partir d'un modèle de section basé sur des expressions régulières.
+    Splits a text into optimized chunks for embedding generation, ensuring each chunk is within the token limit.
 
     Args:
-        text (str): Texte à découper en sections.
+        text (str): The input text to split into chunks.
+        max_tokens (int): The maximum number of tokens for each chunk (default is 382 for the model).
 
     Returns:
-        list: Liste de dictionnaires contenant les titres et le contenu des sections.
+        list: A list of dictionaries containing the index and content of each chunk.
     """
-    section_pattern = r'([A-Z]\.\d+(\.\d+)*)\s+|\b(Partie|Chapitre)\b\s+\d+[:\.\s]+\b'
-    matches = list(re.finditer(section_pattern, text))
-    sections = []
+    # Split the text into sentences using NLTK
+    sentences = nltk.sent_tokenize(text)
+    chunks = []
+    current_chunk = ""
+    chunk_index = 0
 
-    for i, match in enumerate(matches):
-        section_title = match.group(0)
-        start_idx = match.end()
-        end_idx = matches[i + 1].start() if i < len(matches) - 1 else len(text)
-        section_text = text[start_idx:end_idx].strip()
-        sections.append({
-            "title": section_title,
-            "text": section_text
+    for sentence in sentences:
+        # Check if adding the next sentence exceeds the max token limit
+        if len(current_chunk) + len(sentence) <= max_tokens:
+            current_chunk += sentence + " "
+        else:
+            # Add the current chunk to the list
+            chunks.append({
+                "title": f"Chunk {chunk_index}",
+                "text": current_chunk.strip()
+            })
+            chunk_index += 1
+            # Start a new chunk with the current sentence
+            current_chunk = sentence + " "
+
+    # Add the last chunk if it has any remaining text
+    if current_chunk:
+        chunks.append({
+            "title": f"Chunk {chunk_index}",
+            "text": current_chunk.strip()
         })
-    return sections
+
+    return chunks
 
 
 # Fonction pour découper le texte en phrases

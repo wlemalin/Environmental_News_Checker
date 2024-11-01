@@ -14,9 +14,7 @@ Fonctionnalités principales :
 # Fonction pour détecter les termes du glossaire dans une phrase
 
 import pandas as pd
-
 from file_utils import save_to_csv
-from topic_classifier import keywords_for_each_chunk
 from txt_manipulation import decouper_en_phrases
 
 

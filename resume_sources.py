@@ -1,11 +1,9 @@
 from concurrent.futures import ThreadPoolExecutor, as_completed
-
 import numpy as np
 import pandas as pd
 import torch
 from sentence_transformers import SentenceTransformer, util
 from tqdm import tqdm
-
 from embeddings_creation import embed_texts, generer_embeddings_rapport
 from prompt import creer_llm_resume
 
