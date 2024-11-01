@@ -77,7 +77,7 @@ def process_evaluation(rag_csv, resultats_csv):
     rag_df = pd.read_csv(rag_csv)
     
     # Load final_climate_analysis_with_questions.csv to get "current_phrase" column
-    questions_df = pd.read_csv("/Users/mateodib/Desktop/Environmental_News_Checker-main/final_climate_analysis_with_questions.csv", usecols=['id', 'current_phrase'])
+    questions_df = pd.read_csv("/Users/mateodib/Desktop/Environmental_News_Checker-Mateo/final_climate_analysis_with_questions.csv", usecols=['id', 'current_phrase'])
     
     # Merge rag_df with questions_df on 'id'
     rag_df = rag_df.merge(questions_df, on='id', how='left')

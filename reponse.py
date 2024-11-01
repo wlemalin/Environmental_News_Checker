@@ -81,10 +81,13 @@ def process_reponses(chemin_questions_csv, chemin_resultats_csv):
 
     prompt = PromptTemplate(template=prompt_template, input_variables=[
                             "question", "consolidated_text"])
-    llm_chain = LLMChain(prompt=prompt, llm=llm)
+    llm_chain = prompt | llm  # Using simplified chaining without LLMChain
 
     # Generate answers and save them to CSV
     mentions = answer_questions_parallel(questions_df, llm_chain)
     df_mentions = pd.DataFrame(mentions)
     df_mentions.to_csv(chemin_resultats_csv, index=False, quotechar='"')
     print(f"Mentions saved to file {chemin_resultats_csv}")
+    
+
+

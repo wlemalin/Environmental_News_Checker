@@ -18,15 +18,42 @@ import numpy as np
 import pandas as pd
 import tqdm
 from langchain import LLMChain, PromptTemplate
-from langchain.llms import Ollama
-from langchain.prompts import PromptTemplate
-from langchain_ollama import OllamaLLM  # Updated import for Ollama
+from langchain_ollama import OllamaLLM 
 from llama_index.core import Settings
 from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 from llama_index.embeddings.ollama import OllamaEmbedding
 from sentence_transformers import util
-from tqdm import tqdm  # To show progress bars
+from tqdm import tqdm
 
+
+def prompt_selection_phrase_pertinente(model_name="llama3.2:3b-instruct-fp16") :
+    llm = OllamaLLM(model=model_name)
+    # Define the improved prompt template for LLM climate analysis in French with detailed instructions
+    prompt_template = """
+    Vous êtes un expert chargé d'identifier tous les sujets abordés dans le texte suivant, qu'ils soient ou non liés à l'environnement, au changement climatique ou au réchauffement climatique.
+    
+    Phrase : {current_phrase}
+    context : {context}
+    
+    1. Si le texte mentionne de près ou de loin l'environnement, le changement climatique, le réchauffement climatique, ou des organisations, événements ou accords liés à ces sujets (par exemple le GIEC, les conférences COP, les accords de Paris, etc.), répondez '1'. Sinon, répondez '0'.
+    2. Listez **tous** les sujets abordés dans le texte, y compris ceux qui ne sont pas liés à l'environnement ou au climat.
+    
+    Format de réponse attendu :
+    - Réponse binaire (0 ou 1) : [Réponse]
+    - Liste des sujets abordés : [Sujet 1, Sujet 2, ...]
+    
+    Exemple de réponse :
+    - Réponse binaire (0 ou 1) : 1
+    - Liste des sujets abordés : [Incendies, gestion des forêts, réchauffement climatique, économie locale, GIEC]
+    """
+
+    prompt = PromptTemplate(template=prompt_template, input_variables=["current_phrase", "context"])
+
+    # Directly chain prompt with LLM using the | operator
+    llm_chain = prompt | llm  # Using simplified chaining without LLMChain
+
+    # Use pipe to create a chain where prompt output feeds into the LLM
+    return llm_chain
 
 # Fonction pour configurer les modèles d'embeddings
 def configure_embeddings(use_ollama: bool = False) -> None:
@@ -136,56 +163,51 @@ def comparer_article_rapport_with_rag(phrases_article: list[str], embeddings_rap
     return mentions
 
 
-# Function to analyze a paragraph with the LLM
+# Fonction pour analyser un paragraphe avec Llama 3.2
 def analyze_paragraph_with_llm(current_phrase, context, llm_chain):
-    # Create a single dictionary with the required keys
+    # Créer un seul dictionnaire avec les deux clés
     inputs = {"current_phrase": current_phrase, "context": context}
 
-    # Call the LLM with the inputs
+    # Appeler le LLM avec les inputs
     response = llm_chain.invoke(inputs)
 
     if isinstance(response, dict) and "text" in response:
         return response["text"].strip()
     return response.strip()
 
-# Function to manage parallel analysis of paragraphs
 
-
+# Fonction pour gérer l'analyse des paragraphes en parallèle
 def analyze_paragraphs_parallel(splitted_text, llm_chain):
     results = []
 
-    # Use ThreadPoolExecutor for parallel processing
+    # Utilisation de ThreadPoolExecutor pour le traitement parallèle
     with concurrent.futures.ThreadPoolExecutor(max_workers=14) as executor:
-        # Create a task for each entry in splitted_text
-        futures = {
-            executor.submit(
-                analyze_paragraph_with_llm, entry["current_phrase"], entry["context"], llm_chain
-            ): entry for entry in splitted_text
-        }
+        # Créez une tâche pour chaque entrée de splitted_text (chaque phrase avec son contexte et son index)
+        futures = {executor.submit(
+            analyze_paragraph_with_llm, entry["current_phrase"], entry["context"], llm_chain): entry for entry in splitted_text}
 
-        # Iterate over completed results
+        # Parcourir les résultats à mesure qu'ils sont terminés
         for future in tqdm(concurrent.futures.as_completed(futures), total=len(futures), desc="Analyzing paragraphs"):
             entry = futures[future]
             current_phrase = entry["current_phrase"]
             context = entry["context"]
-            index = entry["id"]  # Retrieve the index
+            index = entry["id"]  # Récupération de l'index
 
             try:
-                # Get the analysis result
+                # Obtenir le résultat de l'analyse
                 analysis = future.result()
 
-                # Save index, phrase, context, and LLM response to the result
+                # Enregistrer l'index, la phrase, le contexte et la réponse du LLM dans le résultat
                 results.append({
-                    "id": index,  # Add index to results
+                    "id": index,  # Ajout de l'index dans les résultats
                     "current_phrase": current_phrase,
                     "context": context,
                     "climate_related": analysis
                 })
 
-                # Print after each analysis for debugging
+                # Affichage après chaque analyse
                 print(
-                    f"ID: {index}\nPhrase:\n{current_phrase}\nContext:\n{context}\nLLM Response: {analysis}\n"
-                )
+                    f"ID: {index}\nPhrase:\n{current_phrase}\nContext:\n{context}\nLLM Response: {analysis}\n")
 
             except Exception as exc:
                 print(
@@ -268,7 +290,7 @@ def create_questions_llm(model_name="llama3.2:3b-instruct-fp16"):
     """
     Initialise le modèle LLM et crée une LLMChain.
     """
-    llm = Ollama(model=model_name)
+    llm = OllamaLLM(model=model_name)
     prompt_template = """
     Vous êtes chargé de formuler une **question précise** pour vérifier les informations mentionnées dans un extrait spécifique d'un article de presse en consultant directement les rapports du GIEC (Groupe d'experts intergouvernemental sur l'évolution du climat).
 
@@ -289,9 +311,15 @@ def create_questions_llm(model_name="llama3.2:3b-instruct-fp16"):
 
     Générez uniquement la **question** spécifique qui permettrait de vérifier les informations mentionnées dans cette phrase en consultant les rapports du GIEC via un système de récupération d'information (RAG).
     """
+    
     prompt = PromptTemplate(template=prompt_template, input_variables=[
                             "current_phrase", "context"])
-    return LLMChain(prompt=prompt, llm=llm)
+
+    # Directly chain prompt with LLM using the | operator
+    llm_chain = prompt | llm  # Using simplified chaining without LLMChain
+
+    # Use pipe to create a chain where prompt output feeds into the LLM
+    return llm_chain
 
 
 # Fonction pour générer une question avec Llama3.2
@@ -327,114 +355,11 @@ def generate_questions_parallel(df, llm_chain):
     return pd.DataFrame(results)
 
 
-# Prompts pour chaque LLM (exactitude, biais, ton)
-def creer_prompts():
-    prompt_template_exactitude = """
-    Vous êtes chargé de comparer un extrait d'un article de presse aux informations officielles du rapport du GIEC. Votre tâche consiste à évaluer l'exactitude des informations présentées dans ce extrait, en vous basant sur les sections du rapport du GIEC fournies. 
-
-    **Contexte** : L'extrait de l'article peut contenir des informations sur le changement climatique, les impacts environnementaux, ou d'autres sujets liés au climat. Vous devez juger si ces informations correspondent ou non aux faits et conclusions du rapport du GIEC tout en étant assez flexible sur le fait que c'est un extrait d'un article de presse et non un article scientifique.
-
-    **Objectif** : 
-    1. Évaluer si le contenu de l'extrait est exact ou non en fonction des informations spécifiques du rapport du GIEC présentées.
-    2. Si les informations sont partiellement exactes, expliquez les points précis où elles diffèrent ou nécessitent des nuances.
-
-    **Tâche** : Donnez une réponse sous forme d'un score compris entre 0 et 5 évaluant l'exactitude et justifiez votre évaluation en listant des éléments précis issus du rapport du GIEC.
-
-    **Format de la réponse** :
-    1. **Score de l'extrait** : Score ente 0 et 5
-    2. **Justifications** : Listez les éléments clés qui soutiennent votre évaluation (faites référence aux sections du rapport du GIEC fournies). Si l'information est nuancée, mentionnez clairement les divergences.
-
-    **Extrait de l'article** :
-    {current_phrase}
-
-    **Informations du rapport du GIEC sur lesquelles baser votre réponse** :
-    {sections_resumees}
-    """
-
-    prompt_template_biais = """
-    Vous êtes chargé d'analyser un extrait d'un article de presse pour détecter tout biais potentiel par rapport aux informations officielles du rapport du GIEC. 
-
-    **Contexte** : L'extrait peut présenter les informations de manière exagérée, minimisée, ou neutre par rapport aux données du rapport du GIEC. Votre tâche consiste à identifier toute forme de biais et à la décrire. Il faut être relativement indulgent sur la manière de traiter l'extrait étant donné qu'il provient d'un article de presse et que donc, par définition, il n'utilise pas le même ton que le rapport du GIEC.
-
-    **Objectif** : 
-    1. Déterminer si l'extrait amplifie, minimise, ou présente de manière neutre les faits du rapport du GIEC.
-    2. Justifier votre réponse en vous basant sur les informations des sections du rapport du GIEC.
-
-    **Tâche** : Donnez une évaluation du biais (Exagéré, Minimisé, Neutre) et justifiez votre réponse avec des références aux sections pertinentes du rapport du GIEC.
-
-    **Format de la réponse** :
-    1. **Type de biais** : Exagéré, Minimisé, ou Neutre.
-    2. **Justifications** : Détaillez les éléments spécifiques qui justifient votre évaluation du biais, en vous basant sur le contenu du rapport du GIEC.
-
-    **Extrait de l'article** :
-    {current_phrase}
-
-    **Informations du rapport du GIEC sur lesquelles baser votre réponse** :
-    {sections_resumees}
-    """
-
-    prompt_template_ton = """
-    Vous êtes chargé d'analyser le ton d'un extrait d'un article de presse en le comparant aux informations du rapport du GIEC. 
-
-    **Contexte** : Le paragraphe peut utiliser un ton alarmiste, minimiser les faits, ou présenter les informations de manière factuelle et neutre. Votre tâche est de déterminer quel ton est utilisé et de justifier votre réponse en vous appuyant sur les sections pertinentes du rapport du GIEC. Il faut être relativement indulgent sur la manière de traiter l'extrait étant donné qu'il provient d'un article de presse et que donc, par définition, il n'utilise pas le même ton que le rapport du GIEC.
-
-    **Objectif** : 
-    1. Déterminer le ton général de l'extrait : alarmiste, minimisant, factuel, ou neutre.
-    2. Justifier votre évaluation en comparant l'extrait aux informations du rapport du GIEC.
-
-    **Tâche** : Donnez une évaluation du ton (Alarmiste, Minimisant, Neutre, Factuel) et justifiez votre réponse en comparant les faits du paragraphe avec les informations du rapport.
-
-    **Format de la réponse** :
-    1. **Évaluation du ton** : Alarmiste, Minimisant, Neutre, ou Factuel.
-    2. **Justifications** : Expliquez les éléments spécifiques de l'extrait qui supportent votre évaluation du ton, en les comparant aux sections du rapport du GIEC.
-
-    **Extrait de l'article** :
-    {current_phrase}
-
-    **Informations du rapport du GIEC sur lesquelles baser votre réponse** :
-    {sections_resumees}
-    """
-
-    return prompt_template_exactitude, prompt_template_biais, prompt_template_ton
-
-
-# Prompts pour le résumé des sections du GIEC, basé uniquement sur la question
-def creer_prompt_resume():
-    prompt_template_resume = """
-    **Tâche** : Vous devez résumer **exclusivement** les faits pertinents contenus dans la section fournie du rapport du GIEC, en rapport avec la question posée. Les informations doivent être directement liées à la question ou fournir des éléments utiles pour y répondre. Ne retenez que les faits vérifiables du rapport, sans commentaire ni interprétation.
-
-    **Instructions détaillées** :
-    - **Objectif principal** : Identifier et lister uniquement les informations factuelles de la section du GIEC qui répondent ou sont pertinentes pour la question de l'article.
-    - **Aucune interprétation** : Ne fournissez aucun avis personnel, aucune justification, ni éléments de transition. Contentez-vous des faits issus du GIEC.
-    - **Exhaustivité et précision** : Assurez-vous que tous les faits pertinents sont inclus, et formulez chaque fait de manière concise et précise, en une ou deux phrases courtes.
-    - **Organisation** : Listez les faits de manière numérotée pour garantir la clarté de la réponse.
-
-    ### Question posée :
-    "{question}"
-
-    ### Section du rapport du GIEC :
-    {retrieved_sections}
-
-    **Exemple de réponse** :
-    
-        1. Le niveau global de la mer a augmenté de 0,19 mètre entre 1901 et 2010, selon les données du rapport.
-        2. Les températures moyennes mondiales ont augmenté de 1,09°C entre 1850-1900 et 2011-2020, ce qui est principalement attribué aux activités humaines.
-        3. Les concentrations de CO2 dans l'atmosphère ont atteint 410 ppm en 2019, soit les niveaux les plus élevés depuis au moins 2 millions d'années.
-        4. La fréquence et l'intensité des vagues de chaleur ont augmenté dans de nombreuses régions du monde depuis les années 1950.
-        5. Les événements extrêmes, tels que les inondations et les sécheresses, sont plus fréquents et plus intenses, en partie à cause du réchauffement climatique.
-        6. La fonte des glaciers contribue à environ 20% de l'élévation du niveau de la mer observée entre 1993 et 2018.
-
-    **Remarque** : Assurez-vous que votre réponse est structurée selon les consignes ci-dessus, sans aucun ajout personnel.
-"""
-
-    return PromptTemplate(template=prompt_template_resume, input_variables=["question", "retrieved_sections"])
-
-
-def creer_llm_resume():
+def creer_llm_resume(model_name="llama3.2:3b-instruct-fp16"):
     """
     Creates and configures the LLM chain for summarization.
     """
-    llm = OllamaLLM(model="llama3.2:3b-instruct-fp16")
+    llm = OllamaLLM(model=model_name)
     prompt_template_resume = """
     **Tâche** : Fournir un résumé structuré des faits contenus dans la section du rapport du GIEC, en les organisant par pertinence pour répondre à la question posée. La réponse doit être sous forme de liste numérotée.
 
@@ -465,5 +390,8 @@ def creer_llm_resume():
     prompt = PromptTemplate(template=prompt_template_resume, input_variables=[
                             "question", "retrieved_sections"])
 
+    # Directly chain prompt with LLM using the | operator
+    llm_chain = prompt | llm  # Using simplified chaining without LLMChain
+
     # Use pipe to create a chain where prompt output feeds into the LLM
-    return prompt | llm
+    return llm_chain
