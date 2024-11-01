@@ -110,6 +110,17 @@ def run_script_4():
     df.to_csv(output_path, index=False)
     print(f"Results saved to {output_path}")
 
+ # Conversion de la liste en DataFrame
+    analysis_results_df = pd.DataFrame(analysis_results)
+    # Appliquer la méthode de parsing au DataFrame
+    parsed_df_improved = parsed_responses(analysis_results_df)
+    # Sauvegarder le DataFrame avec les résultats parsés
+    output_path_improved = "/Users/mateodib/Desktop/Environmental_News_Checker-main/final_climate_analysis_results_improved.csv"
+    parsed_df_improved['subjects'] = parsed_df_improved['subjects'].apply(
+        lambda x: ', '.join(x))
+    parsed_df_improved.to_csv(output_path_improved, index=False)
+    # Affichage de quelques lignes du DataFrame final
+    print(parsed_df_improved.head())
 
 def run_script_5():
     # Charger la base de données CSV contenant les phrases, la réponse binaire, et le contexte

@@ -1,5 +1,9 @@
 
+
 # Modified prompts for accuracy, bias, and tone with explicit distinction
+from langchain.prompts import prompt
+
+
 def creer_prompts_metrics():
     prompt_template_exactitude = """
     Vous êtes chargé de comparer un extrait d'un article de presse aux informations officielles du rapport du GIEC. Votre tâche consiste uniquement à évaluer l'exactitude des informations présentées dans cet extrait, en vous basant exclusivement sur les sections du rapport du GIEC fournies.
@@ -80,3 +84,26 @@ def creer_prompts_metrics():
     """
 
     return prompt_template_exactitude, prompt_template_biais, prompt_template_ton
+
+
+
+def creer_prompt_topic_id():
+
+    prompt_template = """
+    Vous êtes un expert chargé d'identifier tous les sujets abordés dans le texte suivant, qu'ils soient ou non liés à l'environnement, au changement climatique ou au réchauffement climatique.
+
+    Phrase : {current_phrase}
+    Contexte : {context}
+
+    1. Si le texte mentionne de près ou de loin l'environnement, le changement climatique, le réchauffement climatique, ou des organisations, événements ou accords liés à ces sujets (par exemple le GIEC, les conférences COP, les accords de Paris, etc.), répondez '1'. Sinon, répondez '0'.
+    2. Listez **tous** les sujets abordés dans le texte, y compris ceux qui ne sont pas liés à l'environnement ou au climat.
+
+    Format de réponse attendu :
+    - Réponse binaire (0 ou 1) : [Réponse]
+    - Liste des sujets abordés : [Sujet 1, Sujet 2, ...]
+
+    Exemple de réponse :
+    - Réponse binaire (0 ou 1) : 1
+    - Liste des sujets abordés : [Incendies, gestion des forêts, réchauffement climatique, économie locale, GIEC]
+    """
+    return prompt_template
