@@ -19,13 +19,12 @@ import pandas as pd
 import tqdm
 from langchain import LLMChain, PromptTemplate
 from langchain.llms import Ollama
+from langchain_ollama import OllamaLLM
 from llama_index.core import Settings
 from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 from llama_index.embeddings.ollama import OllamaEmbedding
 from sentence_transformers import util
 from tqdm import tqdm
-from langchain_ollama import OllamaLLM
-from langchain.schema.runnable import RunnableSequence  # Import the new pipeline sequence
 
 
 # Fonction pour configurer les modèles d'embeddings
@@ -59,18 +58,21 @@ def rag_answer_generation_with_llmchain(question: str, relevant_sections: list[s
     """
     # Combiner les sections pertinentes en un seul contexte
     context = " ".join(relevant_sections)
-    
+
     inputs = {
         "question": question,
         "consolidated_text": context
     }
-    
+
     response = llm_chain.invoke(inputs)
-    
-    generated_answer = response['text'] if isinstance(response, dict) and "text" in response else response
+
+    generated_answer = response['text'] if isinstance(
+        response, dict) and "text" in response else response
     return generated_answer.strip()
 
 # Fonction pour comparer les phrases d'un article avec les sections d'un rapport
+
+
 def comparer_article_rapport_with_rag(phrases_article: list[str], embeddings_rapport: np.ndarray, sections_rapport: list[str], llm_chain,  top_k: int = 3) -> list[dict]:
     """
     Compare les phrases d'un article avec les sections d'un rapport en utilisant les embeddings et RAG.
@@ -133,7 +135,6 @@ def comparer_article_rapport_with_rag(phrases_article: list[str], embeddings_rap
     return mentions
 
 
-
 # Fonction pour analyser un paragraphe avec Llama 3.2
 def analyze_paragraph_with_llm(current_phrase, context, llm_chain):
     # Créer un seul dictionnaire avec les deux clés
@@ -150,7 +151,7 @@ def analyze_paragraph_with_llm(current_phrase, context, llm_chain):
 # Fonction pour gérer l'analyse des paragraphes en parallèle
 def analyze_paragraphs_parallel(splitted_text, llm_chain):
     results = []
-    
+
     # Utilisation de ThreadPoolExecutor pour le traitement parallèle
     with concurrent.futures.ThreadPoolExecutor(max_workers=14) as executor:
         # Créez une tâche pour chaque entrée de splitted_text (chaque phrase avec son contexte et son index)
@@ -422,21 +423,41 @@ def creer_prompt_resume():
 
     return PromptTemplate(template=prompt_template_resume, input_variables=["question", "retrieved_sections"])
 
+
 def creer_llm_resume():
     """
     Creates and configures the LLM chain for summarization.
     """
     llm = OllamaLLM(model="llama3.2:3b-instruct-fp16")
     prompt_template_resume = """
-    Votre tâche est d'extraire et de **lister uniquement** les faits les plus pertinents contenus dans les sections du rapport du GIEC en rapport avec la question posée. 
-    **Question posée** : {question}
-    **Sections associées** : {retrieved_sections}
+    **Tâche** : Fournir un résumé structuré des faits contenus dans la section du rapport du GIEC, en les organisant par pertinence pour répondre à la question posée. La réponse doit être sous forme de liste numérotée.
 
-    Réponse sous forme de liste numérotée :
-    1. ...
-    2. ...
+    **Instructions** :
+    - **Objectif** : Lister tous les faits pertinents, y compris les éléments indirects ou contextuels pouvant enrichir la réponse.
+    - **Éléments à inclure** : 
+        1. Faits scientifiques directement liés à la question.
+        2. Faits indirects apportant un contexte utile.
+        3. Tendances, implications, ou statistiques pertinentes.
+        4. Autres informations utiles pour comprendre le sujet.
+    - **Restrictions** : Ne pas inclure d'opinions ou interprétations, uniquement les faits.
+    - **Format** : Utiliser une liste numérotée, chaque point limité à une ou deux phrases. Commencer par les faits les plus directement liés et finir par les éléments contextuels.
+
+    ### Question :
+    "{question}"
+
+    ### Section du rapport :
+    {retrieved_sections}
+
+    **Exemple** :
+        1. Le niveau global de la mer a augmenté de 0,19 m entre 1901 et 2010.
+        2. Les températures mondiales ont augmenté de 1,09°C entre 1850-1900 et 2011-2020.
+        3. Les concentrations de CO2 ont atteint 410 ppm en 2019.
+
+
+    **Remarque** : Respecter strictement ces consignes et ne présenter que les faits sous forme de liste numérotée.
     """
-    prompt = PromptTemplate(template=prompt_template_resume, input_variables=["question", "retrieved_sections"])
-    
-    # Use RunnableSequence for chaining the prompt and LLM
-    return RunnableSequence([prompt, llm])
+    prompt = PromptTemplate(template=prompt_template_resume, input_variables=[
+                            "question", "retrieved_sections"])
+
+    # Use pipe to create a chain where prompt output feeds into the LLM
+    return prompt | llm

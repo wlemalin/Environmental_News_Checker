@@ -10,23 +10,22 @@ Ce script effectue plusieurs tâches liées au traitement de texte et à l'intel
 4. Vérification des faits avec un modèle LLM (Llama) : Génération de réponses basées sur les sections extraites du rapport en utilisant un modèle de type RAG (Retrieve-and-Generate).
 """
 
+from nltk.tokenize import sent_tokenize
 import nltk
 import pandas as pd
 from langchain import LLMChain, PromptTemplate
 from langchain.chains import LLMChain
 from langchain.llms import Ollama
-from llama_index.core import Settings
-from llama_index.embeddings.huggingface import HuggingFaceEmbedding
-from file_utils import (charger_glossaire, load_and_group_text, load_text,
-                        save_results_to_csv, save_to_csv)
+from file_utils import save_to_csv
 from llms import (analyze_paragraphs_parallel, create_questions_llm,
                   generate_questions_parallel, parsed_responses)
-from metrics import process_evaluation
 from pdf_processing import process_pdf_to_index
-from rag import rag_process
+
 from topic_classifier import generate_context_windows, keywords_for_each_chunk
 from txt_manipulation import decouper_en_phrases, pretraiter_article
 from resume_sources import process_resume
+from reponse import process_reponses
+from metrics import process_evaluation
 
 def run_script_1():
     """
@@ -62,12 +61,12 @@ def run_script_3():
     # chemin_rapport_embeddings = './IPCC_Answer_Based/rapport_indexed.json'
 
     # Charger le glossaire (termes et définitions)
-    termes_glossaire, definitions_glossaire = charger_glossaire(
-        chemin_glossaire)
+    glossaire = pd.read_csv(chemin_glossaire)
+    termes_glossaire = glossaire['Translated_Term'].tolist()
+    definitions_glossaire = glossaire['Translated_Definition'].tolist()
 
-    # Charger l'article nettoyé
-    texte_nettoye = load_text(chemin_cleaned_article)
-
+    with open(chemin_cleaned_article, 'r', encoding='utf-8') as file:
+        texte_nettoye = file.read()
     # Découper l'article en phrases
     phrases = decouper_en_phrases(texte_nettoye)
 
@@ -115,7 +114,10 @@ def run_script_4():
     file_path = "/Users/mateodib/Desktop/Environmental_News_Checker-main/_ _ C_est plus confortable de se dire que ce n_est pas si grave __cleaned_cleaned.txt"
 
     # Charger et regrouper le texte en phrases
-    sentences = load_and_group_text(file_path)
+    with open(file_path, 'r', encoding='utf-8') as f:
+        text = f.read()
+
+    sentences = sent_tokenize(text)  # Divise le texte en phrases
 
     splitted_text = generate_context_windows(sentences)
 
@@ -123,8 +125,12 @@ def run_script_4():
     analysis_results = analyze_paragraphs_parallel(splitted_text, llm_chain)
 
     # Sauvegarder les résultats dans un fichier CSV
-    save_results_to_csv(
-        analysis_results, output_path="/Users/mateodib/Desktop/Environmental_News_Checker-main/climate_analysis_results.csv")
+    df = pd.DataFrame(analysis_results)
+    output_path = "/Users/mateodib/Desktop/Environmental_News_Checker-main/climate_analysis_results.csv"
+    df.to_csv(output_path, index=False)
+    print(f"Results saved to {output_path}")
+
+
 
     # Conversion de la liste en DataFrame
     analysis_results_df = pd.DataFrame(analysis_results)
@@ -172,15 +178,15 @@ def resume_sources():
     process_resume(chemin_csv_questions, chemin_rapport_embeddings, chemin_resultats_csv, 5) # Top-K = 5
 
 def run_script_6():
-    chemin_questions_csv = "/Users/mateodib/Desktop/Environmental_News_Checker-main/resume_sections_results.csv" #résumé sections résults ? TODO
+    chemin_questions_csv = "/Users/mateodib/Desktop/Environmental_News_Checker-main/resume_sections_results.csv"
     chemin_resultats_csv = "/Users/mateodib/Desktop/Environmental_News_Checker-main/rag_results.csv"
-    rag_process(chemin_questions_csv, chemin_resultats_csv)
+    process_reponses(chemin_questions_csv, chemin_resultats_csv)
 
 
 def run_script_7():
-    chemin_rag_csv = "/Users/mateodib/Desktop/Environmental_News_Checker-main/rag_results.csv"
-    chemin_resultats_csv = "/Users/mateodib/Desktop/Environmental_News_Checker-main/exactitude_biais_ton_results.csv"
-    process_evaluation(chemin_rag_csv, chemin_resultats_csv)
+    rag_csv = "/Users/mateodib/Desktop/Environmental_News_Checker-main/rag_results.csv"
+    resultats_csv = "/Users/mateodib/Desktop/Environmental_News_Checker-main/evaluation_results.csv"
+    process_evaluation(rag_csv, resultats_csv)
 
 
 def run_all_scripts():

@@ -10,7 +10,8 @@ Fonctionnalités principales :
 
 """
 
-from file_utils import save_database, extract_text_from_pdf
+from pdfminer.high_level import extract_text
+from file_utils import save_database
 from txt_manipulation import clean_text, split_text_by_sections
 
 
@@ -25,7 +26,7 @@ def process_pdf_to_index(chemin_rapport_pdf: str, chemin_output_json: str) -> No
         chemin_output_json (str): Chemin du fichier JSON où sauvegarder les sections extraites.
     """
     # Extraction du texte du PDF
-    raw_text = extract_text_from_pdf(chemin_rapport_pdf)
+    raw_text = extract_text(chemin_rapport_pdf)
 
     # Nettoyage du texte extrait
     cleaned_text = clean_text(raw_text)
