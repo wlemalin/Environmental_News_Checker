@@ -2,34 +2,29 @@
 # -*- coding: utf-8 -*-
 """
 Script principal pour le traitement d'un article de presse et d'un rapport du GIEC.
-Ce script effectue plusieurs tâches liées au traitement de texte et à l'intelligence artificielle, réparties en quatre étapes :
+Ce script effectue plusieurs tâches liées au traitement de texte et à l'intelligence artificielle, réparties en plusieurs étapes :
 
 1. Nettoyage et prétraitement de l'article de presse : Suppression des éléments non pertinents et préparation du texte pour les étapes suivantes.
 2. Extraction, nettoyage et indexation des sections du rapport PDF : Transformation du rapport en texte exploitable, puis découpage en sections indexées.
 3. Identification des mentions directes et indirectes au GIEC : Utilisation d'un modèle d'embeddings pour comparer les phrases de l'article avec les sections du rapport, et détection des termes du glossaire.
-4. Vérification des faits avec un modèle LLM (Llama) : Génération de réponses basées sur les sections extraites du rapport en utilisant un modèle de type RAG (Retrieve-and-Generate).
+4. Génération de questions, résumés et vérification des faits avec un modèle LLM : Génération de réponses basées sur les sections extraites du rapport en utilisant un modèle de type RAG (Retrieve-and-Generate).
+5. Évaluation des réponses générées.
 """
 
-from nltk.tokenize import sent_tokenize
-import nltk
-import pandas as pd
-from langchain import LLMChain, PromptTemplate
-from langchain_ollama import OllamaLLM 
-from file_utils import save_to_csv
-from llms import (analyze_paragraphs_parallel, create_questions_llm,
-                  generate_questions_parallel, parsed_responses, prompt_selection_phrase_pertinente)
-from pdf_processing import process_pdf_to_index
-
-from topic_classifier import generate_context_windows, keywords_for_each_chunk
-from txt_manipulation import decouper_en_phrases, pretraiter_article
-from resume_sources import process_resume
-from reponse import process_reponses
+from filtrer_extraits import identifier_extraits_sur_giec
 from metrics import process_evaluation
+from pdf_processing import process_pdf_to_index
+from reponse import process_reponses
+from resume_sources import process_resume
+from topic_classifier import glossaire_topics
+from txt_manipulation import pretraiter_article
+from questions import question_generation_process
 
-def run_script_1():
+
+def clean_press_article():
     """
     Première Partie : Nettoyage de l'article de Presse.
-    Charge et prétraite l'article en supprimant les éléments non pertinents, puis le sauvegarde dans un dossier.
+    Charge et prétraite l'article en supprimant les éléments non pertinents, puis le sauvegarde dans un dossier spécifié.
     """
     chemin_article = '_ _ C_est plus confortable de se dire que ce n_est pas si grave __cleaned_cleaned.txt'
     chemin_dossier_nettoye = '/Users/mateodib/Desktop/Environmental_News_Checker-Mateo/Nettoye_Articles/'
@@ -37,7 +32,7 @@ def run_script_1():
     pretraiter_article(chemin_article, chemin_dossier_nettoye)
 
 
-def run_script_2():
+def process_ipcc_report():
     """
     Seconde Partie : Nettoyage du rapport de synthèse et indexation.
     Extrait le texte d'un rapport PDF, le nettoie et l'indexe en sections, puis sauvegarde le tout dans un fichier JSON.
@@ -48,7 +43,7 @@ def run_script_2():
     process_pdf_to_index(chemin_rapport_pdf, chemin_output_json)
 
 
-def run_script_3():
+def identify_ipcc_mentions():
     """
     Troisième Partie : Identification des mentions directes/indirectes au GIEC.
     Compare les phrases d'un article avec les sections d'un rapport et identifie les termes du glossaire.
@@ -57,124 +52,73 @@ def run_script_3():
     chemin_cleaned_article = '_ _ C_est plus confortable de se dire que ce n_est pas si grave __cleaned_cleaned.txt'
     chemin_resultats_csv = '/Users/mateodib/Desktop/Environmental_News_Checker-Mateo/mentions_extraites.csv'
     chemin_glossaire = 'translated_glossary_with_definitions.csv'
-    # chemin_rapport_embeddings = './IPCC_Answer_Based/rapport_indexed.json'
-
-    # Charger le glossaire (termes et définitions)
-    glossaire = pd.read_csv(chemin_glossaire)
-    termes_glossaire = glossaire['Translated_Term'].tolist()
-    definitions_glossaire = glossaire['Translated_Definition'].tolist()
-
-    with open(chemin_cleaned_article, 'r', encoding='utf-8') as file:
-        texte_nettoye = file.read()
-    # Découper l'article en phrases
-    phrases = decouper_en_phrases(texte_nettoye)
-
-    # Comparer l'article avec le rapport
-    mentions = keywords_for_each_chunk(
-        phrases, termes_glossaire, definitions_glossaire)
-
-    # Sauvegarder les correspondances dans un fichier CSV
-    save_to_csv(mentions, chemin_resultats_csv, [
-        "phrase", "contexte", "glossary_terms", "definitions"])
+    glossaire_topics(chemin_glossaire, chemin_cleaned_article, chemin_resultats_csv)
 
 
-def run_script_4():
-    nltk.download('punkt')  # Téléchargez le modèle de tokenisation des phrases
-
-    
-    llm_chain = prompt_selection_phrase_pertinente()
-
-    # Chemin vers le fichier texte
+def extract_relevant_ipcc_references():
+    """
+    Quatrième Partie : Identification des extraits relatifs au GIEC.
+    Identifie les extraits pertinents de l'article qui mentionnent directement ou indirectement le GIEC et améliore les résultats.
+    """
     file_path = "_ _ C_est plus confortable de se dire que ce n_est pas si grave __cleaned_cleaned.txt"
-
-    # Charger et regrouper le texte en phrases
-    with open(file_path, 'r', encoding='utf-8') as f:
-        text = f.read()
-
-    sentences = sent_tokenize(text)  # Divise le texte en phrases
-
-    splitted_text = generate_context_windows(sentences)
-
-    # Analyser les paragraphes avec Llama 3.2 en parallèle
-    analysis_results = analyze_paragraphs_parallel(splitted_text, llm_chain)
-
-    # Sauvegarder les résultats dans un fichier CSV
-    df = pd.DataFrame(analysis_results)
-    
     output_path = "/Users/mateodib/Desktop/Environmental_News_Checker-Mateo/climate_analysis_results.csv"
-    df.to_csv(output_path, index=False)
-    print(f"Results saved to {output_path}")
-
-    # Conversion de la liste en DataFrame
-    analysis_results_df = pd.DataFrame(analysis_results)
-
-    # Appliquer la méthode de parsing au DataFrame
-    parsed_df_improved = parsed_responses(analysis_results_df)
-
-    # Sauvegarder le DataFrame avec les résultats parsés
     output_path_improved = "/Users/mateodib/Desktop/Environmental_News_Checker-Mateo/final_climate_analysis_results_improved.csv"
-    parsed_df_improved['subjects'] = parsed_df_improved['subjects'].apply(
-        lambda x: ', '.join(x))
-    parsed_df_improved = parsed_df_improved.head(3)
-    parsed_df_improved.to_csv(output_path_improved, index=False)
-
-    # Affichage de quelques lignes du DataFrame final
-    print(parsed_df_improved.head())
+    identifier_extraits_sur_giec(file_path, output_path, output_path_improved)
 
 
-def run_script_5():
-    # Charger la base de données CSV contenant les phrases, la réponse binaire, et le contexte
-    df = pd.read_csv(
-        "/Users/mateodib/Desktop/Environmental_News_Checker-Mateo/final_climate_analysis_results_improved.csv")
-
-    # Convertir la colonne 'binary_response' en texte (si elle est en format texte)
-    df['binary_response'] = df['binary_response'].astype(str)
-
-    # Filtrer uniquement les phrases identifiées comme liées à l'environnement (réponse binaire '1')
-    df_environment = df[df['binary_response'] == '1']
-
-    # Créer la LLMChain pour la génération des questions
-    llm_chain = create_questions_llm()
-
-    # Générer les questions pour les phrases liées à l'environnement
-    questions_df = generate_questions_parallel(df_environment, llm_chain)
-
-    # Sauvegarder les résultats dans un nouveau fichier CSV
+def generate_questions():
+    """
+    Cinquième Partie : Génération de questions.
+    Génère des questions basées sur les extraits améliorés de l'article et sauvegarde les questions dans un fichier CSV.
+    """
+    file_path = "/Users/mateodib/Desktop/Environmental_News_Checker-Mateo/final_climate_analysis_results_improved.csv"
     output_path_questions = "/Users/mateodib/Desktop/Environmental_News_Checker-Mateo/final_climate_analysis_with_questions.csv"
-    questions_df.to_csv(output_path_questions, index=False)
-    print(f"Questions generated and saved to {output_path_questions}")
+    question_generation_process(file_path, output_path_questions)
 
 
-def resume_sources():
-    chemin_csv_questions = "/Users/mateodib/Desktop/Environmental_News_Checker-Mateo/final_climate_analysis_with_questions.csv" # final_climate_analysis_with_questions.csv TODO
+def summarize_source_sections():
+    """
+    Résumé des sources pour chaque question.
+    Prend les questions générées, trouve les sections du rapport les plus pertinentes et les résume pour chaque question.
+    """
+    chemin_csv_questions = "/Users/mateodib/Desktop/Environmental_News_Checker-Mateo/final_climate_analysis_with_questions.csv"
     chemin_resultats_csv = "/Users/mateodib/Desktop/Environmental_News_Checker-Mateo/resume_sections_results.csv"
     chemin_rapport_embeddings = "/Users/mateodib/Desktop/Environmental_News_Checker-Mateo/rapport_indexed.json"
-    process_resume(chemin_csv_questions, chemin_rapport_embeddings, chemin_resultats_csv, 5) # Top-K = 5
+    process_resume(chemin_csv_questions, chemin_rapport_embeddings, chemin_resultats_csv, 5)  # Top-K = 5
 
-def run_script_6():
+
+def generate_rag_responses():
+    """
+    Sixième Partie : Génération de réponses (RAG).
+    Utilise un modèle de type RAG (Retrieve-and-Generate) pour répondre aux questions générées.
+    """
     chemin_questions_csv = "/Users/mateodib/Desktop/Environmental_News_Checker-Mateo/resume_sections_results.csv"
     chemin_resultats_csv = "/Users/mateodib/Desktop/Environmental_News_Checker-Mateo/rag_results.csv"
     process_reponses(chemin_questions_csv, chemin_resultats_csv)
 
 
-def run_script_7():
+def evaluate_generated_responses():
+    """
+    Septième Partie : Évaluation des réponses.
+    Évalue les résultats des réponses générées par le modèle et sauvegarde les évaluations dans un fichier CSV.
+    """
     rag_csv = "/Users/mateodib/Desktop/Environmental_News_Checker-Mateo/rag_results.csv"
     resultats_csv = "/Users/mateodib/Desktop/Environmental_News_Checker-Mateo/evaluation_results.csv"
     process_evaluation(rag_csv, resultats_csv)
 
 
-def run_all_scripts():
+def run_full_processing_pipeline():
     """
-    Exécute toutes les parties du script, dans l'ordre.
+    Exécute toutes les parties du script, dans l'ordre, afin de traiter complètement un article de presse et un rapport du GIEC.
     """
-    run_script_1()
-    run_script_2()
-    # run_script_3()
-    run_script_4()
-    run_script_5()  # Create questions
-    resume_sources()
-    run_script_6()  # Answer questions
-    run_script_7()
+    clean_press_article()
+    process_ipcc_report()
+    # identify_ipcc_mentions()
+    extract_relevant_ipcc_references()
+    generate_questions()  # Create questions
+    summarize_source_sections()
+    generate_rag_responses()  # Answer questions
+    evaluate_generated_responses()
 
 
 if __name__ == "__main__":
@@ -182,47 +126,44 @@ if __name__ == "__main__":
     Interface principale pour sélectionner et exécuter l'une des parties du script ou l'ensemble.
     """
     print("Choose an option:")
-    print("1. Clean press articles")
-    print("2. Embed IPCC report")
-    print("3. Topic Recognition")
-    print("4. Check for IPCC references")
-    print("5. Create question for each chunk")
-    print("t. Resume sections source")
-    print("6. Run RAG on questions")
-    print("7. Get metrics")
-    print("8. Run all scripts")
+    print("1. Clean press article")
+    print("2. Process IPCC report")
+    print("3. Identify IPCC mentions")
+    print("4. Extract relevant IPCC references")
+    print("5. Generate questions for each chunk")
+    print("6. Summarize source sections")
+    print("7. Generate RAG responses for questions")
+    print("8. Evaluate generated responses")
+    print("9. Run full processing pipeline")
     choice = input("Enter your choice: ")
 
     match choice:
         case "1":
             print("You chose Option 1")
-            run_script_1()
+            clean_press_article()
         case "2":
             print("You chose Option 2")
-            run_script_2()
+            process_ipcc_report()
         case "3":
             print("You chose Option 3")
-            run_script_3()
+            identify_ipcc_mentions()
         case "4":
             print("You chose Option 4")
-            run_script_4()
+            extract_relevant_ipcc_references()
         case "5":
             print("You chose Option 5")
-            run_script_5()
-        case "t":
-            print("You chose Option t")
-            resume_sources()
+            generate_questions()
+        case "9":
+            print("You chose Option 8")
+            summarize_source_sections()
         case "6":
             print("You chose Option 6")
-            run_script_6()
+            generate_rag_responses()
         case "7":
             print("You chose Option 7")
-            run_script_7()
+            evaluate_generated_responses()
         case "8":
-            print("You chose option 8.")
-            run_all_scripts()
+            print("You chose option 9.")
+            run_full_processing_pipeline()
         case _:
             print("Invalid choice. Please choose a valid option.")
-
-
-

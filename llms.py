@@ -17,8 +17,8 @@ from concurrent.futures import ThreadPoolExecutor  # Pour la parallélisation
 import numpy as np
 import pandas as pd
 import tqdm
-from langchain import LLMChain, PromptTemplate
-from langchain_ollama import OllamaLLM 
+from langchain import PromptTemplate
+from langchain_ollama import OllamaLLM
 from llama_index.core import Settings
 from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 from llama_index.embeddings.ollama import OllamaEmbedding
@@ -26,7 +26,7 @@ from sentence_transformers import util
 from tqdm import tqdm
 
 
-def prompt_selection_phrase_pertinente(model_name="llama3.2:3b-instruct-fp16") :
+def prompt_selection_phrase_pertinente(model_name="llama3.2:3b-instruct-fp16"):
     llm = OllamaLLM(model=model_name)
     # Define the improved prompt template for LLM climate analysis in French with detailed instructions
     prompt_template = """
@@ -47,7 +47,8 @@ def prompt_selection_phrase_pertinente(model_name="llama3.2:3b-instruct-fp16") :
     - Liste des sujets abordés : [Incendies, gestion des forêts, réchauffement climatique, économie locale, GIEC]
     """
 
-    prompt = PromptTemplate(template=prompt_template, input_variables=["current_phrase", "context"])
+    prompt = PromptTemplate(template=prompt_template, input_variables=[
+                            "current_phrase", "context"])
 
     # Directly chain prompt with LLM using the | operator
     llm_chain = prompt | llm  # Using simplified chaining without LLMChain
@@ -56,6 +57,8 @@ def prompt_selection_phrase_pertinente(model_name="llama3.2:3b-instruct-fp16") :
     return llm_chain
 
 # Fonction pour configurer les modèles d'embeddings
+
+
 def configure_embeddings(use_ollama: bool = False) -> None:
     """
     Configure le modèle d'embeddings à utiliser (Ollama ou HuggingFace).
@@ -311,7 +314,7 @@ def create_questions_llm(model_name="llama3.2:3b-instruct-fp16"):
 
     Générez uniquement la **question** spécifique qui permettrait de vérifier les informations mentionnées dans cette phrase en consultant les rapports du GIEC via un système de récupération d'information (RAG).
     """
-    
+
     prompt = PromptTemplate(template=prompt_template, input_variables=[
                             "current_phrase", "context"])
 

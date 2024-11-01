@@ -9,9 +9,8 @@ Fonctionnalités principales :
 - Sauvegarde des sections dans un fichier JSON
 
 """
-
+import json
 from pdfminer.high_level import extract_text
-from file_utils import save_database
 from txt_manipulation import clean_text, split_text_by_sections
 
 
@@ -35,4 +34,6 @@ def process_pdf_to_index(chemin_rapport_pdf: str, chemin_output_json: str) -> No
     sections = split_text_by_sections(cleaned_text)
 
     # Sauvegarde des sections dans le fichier de sortie JSON
-    save_database(sections, chemin_output_json)
+    with open(chemin_output_json, 'w', encoding='utf-8') as f:
+        json.dump(sections, f, ensure_ascii=False, indent=4)
+    print(f"Sections sauvegardées dans {chemin_output_json}")

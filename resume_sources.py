@@ -3,12 +3,11 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 import numpy as np
 import pandas as pd
 import torch
-from langchain import LLMChain, PromptTemplate
-from langchain_ollama import OllamaLLM
 from sentence_transformers import SentenceTransformer, util
 from tqdm import tqdm
-from llms import creer_llm_resume
+
 from embeddings_creation import embed_texts, generer_embeddings_rapport
+from llms import creer_llm_resume
 
 
 def charger_donnees_et_modele(chemin_csv_questions, chemin_rapport_embeddings):
@@ -120,7 +119,7 @@ def generer_resume(phrase_id, question, section, llm_chain_resume):
 
 def process_resume(chemin_csv_questions, chemin_rapport_embeddings, chemin_resultats_csv, top_k=3):
     # Charger les données et le modèle
-    df_questions, embeddings_rapport, sections_rapport, titles_rapport, embed_model = charger_donnees_et_modele(
+    df_questions, embeddings_rapport, sections_rapport, _, embed_model = charger_donnees_et_modele(
         chemin_csv_questions, chemin_rapport_embeddings)
 
     # Filtrer les sections pertinentes et obtenir un DataFrame avec retrieved_sections

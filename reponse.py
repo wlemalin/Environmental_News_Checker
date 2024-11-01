@@ -1,6 +1,7 @@
 from concurrent.futures import ThreadPoolExecutor, as_completed
+
 import pandas as pd
-from langchain import LLMChain, PromptTemplate
+from langchain import PromptTemplate
 from langchain_ollama import OllamaLLM
 from tqdm import tqdm
 
@@ -43,6 +44,8 @@ def answer_questions_parallel(questions, llm_chain):
     return results
 
 # Function to generate a response
+
+
 def answer_question(question, resume_sections, sections_brutes, llm_chain, ID):
     inputs = {
         "question": question,
@@ -55,6 +58,8 @@ def answer_question(question, resume_sections, sections_brutes, llm_chain, ID):
     return question, resume_sections, generated_answer, ID, sections_brutes
 
 # Main function to execute the RAG process
+
+
 def process_reponses(chemin_questions_csv, chemin_resultats_csv):
     questions_df = pd.read_csv(chemin_questions_csv)
 
@@ -88,6 +93,3 @@ def process_reponses(chemin_questions_csv, chemin_resultats_csv):
     df_mentions = pd.DataFrame(mentions)
     df_mentions.to_csv(chemin_resultats_csv, index=False, quotechar='"')
     print(f"Mentions saved to file {chemin_resultats_csv}")
-    
-
-
