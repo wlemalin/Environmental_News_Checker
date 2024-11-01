@@ -13,7 +13,6 @@ Fonctionnalités principales :
 import os
 import re
 import nltk
-from file_utils import load_text, save_cleaned_text
 
 
 # Fonction pour appliquer un pré-nettoyage manuel avec regex
@@ -61,15 +60,16 @@ def pretraiter_article(chemin_article: str, chemin_dossier_nettoye: str) -> str:
     Returns:
         str: Chemin du fichier de l'article nettoyé.
     """
-    texte_article = load_text(chemin_article)
+    with open(chemin_article, 'r', encoding='utf-8') as file:
+        texte_article = file.read()
     texte_pre_nettoye = pre_nettoyage_regex(texte_article)
 
     if not os.path.exists(chemin_dossier_nettoye):
         os.makedirs(chemin_dossier_nettoye)
 
     chemin_cleaned_article = os.path.join(chemin_dossier_nettoye, os.path.basename(chemin_article).replace('.txt', '_cleaned.txt'))
-    save_cleaned_text(texte_pre_nettoye, chemin_cleaned_article)
-    print(f"Texte pré-nettoyé sauvegardé dans {chemin_cleaned_article}")
+    with open(chemin_cleaned_article, 'w', encoding='utf-8') as file:
+        file.write(texte_pre_nettoye)
     return chemin_cleaned_article
 
 

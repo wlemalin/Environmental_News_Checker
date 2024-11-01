@@ -41,7 +41,7 @@ def generate_context_windows(phrases, window_size=2, len_phrase_focus=1):
     """
     windows = []
     focus_window = []
-    for i in range(len(phrases)):
+    for i in range(0, len(phrases), 3):
         # Combine les phrases avant et après la phrase actuelle dans une seule chaîne de caractères
         context_window = " ".join(phrases[max(0, i - window_size):min(i + window_size + 1, len(phrases))])
         focus_window =  " ".join(phrases[max(0, i - len_phrase_focus):min(i + len_phrase_focus + 1, len(phrases))])
@@ -49,7 +49,7 @@ def generate_context_windows(phrases, window_size=2, len_phrase_focus=1):
         windows.append({
             "id": i,  # Ajout de l'index
             "context": context_window,
-            "focused_phrases": focus_window
+            "current_phrase": focus_window
         })
     return windows
 

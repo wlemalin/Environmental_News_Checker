@@ -18,13 +18,42 @@ import numpy as np
 import pandas as pd
 import tqdm
 from langchain import LLMChain, PromptTemplate
-from langchain.llms import Ollama
+from langchain_ollama import OllamaLLM 
 from llama_index.core import Settings
 from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 from llama_index.embeddings.ollama import OllamaEmbedding
 from sentence_transformers import util
-from tqdm import tqdm  # Pour la barre de progression
+from tqdm import tqdm
 
+
+def prompt_selection_phrase_pertinente(model_name="llama3.2:3b-instruct-fp16") :
+    llm = OllamaLLM(model=model_name)
+    # Define the improved prompt template for LLM climate analysis in French with detailed instructions
+    prompt_template = """
+    Vous êtes un expert chargé d'identifier tous les sujets abordés dans le texte suivant, qu'ils soient ou non liés à l'environnement, au changement climatique ou au réchauffement climatique.
+    
+    Phrase : {current_phrase}
+    context : {context}
+    
+    1. Si le texte mentionne de près ou de loin l'environnement, le changement climatique, le réchauffement climatique, ou des organisations, événements ou accords liés à ces sujets (par exemple le GIEC, les conférences COP, les accords de Paris, etc.), répondez '1'. Sinon, répondez '0'.
+    2. Listez **tous** les sujets abordés dans le texte, y compris ceux qui ne sont pas liés à l'environnement ou au climat.
+    
+    Format de réponse attendu :
+    - Réponse binaire (0 ou 1) : [Réponse]
+    - Liste des sujets abordés : [Sujet 1, Sujet 2, ...]
+    
+    Exemple de réponse :
+    - Réponse binaire (0 ou 1) : 1
+    - Liste des sujets abordés : [Incendies, gestion des forêts, réchauffement climatique, économie locale, GIEC]
+    """
+
+    prompt = PromptTemplate(template=prompt_template, input_variables=["current_phrase", "context"])
+
+    # Directly chain prompt with LLM using the | operator
+    llm_chain = prompt | llm  # Using simplified chaining without LLMChain
+
+    # Use pipe to create a chain where prompt output feeds into the LLM
+    return llm_chain
 
 # Fonction pour configurer les modèles d'embeddings
 def configure_embeddings(use_ollama: bool = False) -> None:
@@ -57,18 +86,21 @@ def rag_answer_generation_with_llmchain(question: str, relevant_sections: list[s
     """
     # Combiner les sections pertinentes en un seul contexte
     context = " ".join(relevant_sections)
-    
+
     inputs = {
         "question": question,
         "consolidated_text": context
     }
-    
+
     response = llm_chain.invoke(inputs)
-    
-    generated_answer = response['text'] if isinstance(response, dict) and "text" in response else response
+
+    generated_answer = response['text'] if isinstance(
+        response, dict) and "text" in response else response
     return generated_answer.strip()
 
 # Fonction pour comparer les phrases d'un article avec les sections d'un rapport
+
+
 def comparer_article_rapport_with_rag(phrases_article: list[str], embeddings_rapport: np.ndarray, sections_rapport: list[str], llm_chain,  top_k: int = 3) -> list[dict]:
     """
     Compare les phrases d'un article avec les sections d'un rapport en utilisant les embeddings et RAG.
@@ -129,10 +161,6 @@ def comparer_article_rapport_with_rag(phrases_article: list[str], embeddings_rap
 
     print(f"{len(mentions)} mentions trouvées.")
     return mentions
-
-
-
-
 
 
 # Fonction pour analyser un paragraphe avec Llama 3.2
@@ -262,30 +290,36 @@ def create_questions_llm(model_name="llama3.2:3b-instruct-fp16"):
     """
     Initialise le modèle LLM et crée une LLMChain.
     """
-    llm = Ollama(model=model_name)
+    llm = OllamaLLM(model=model_name)
     prompt_template = """
-    Vous êtes chargé de formuler une **question précise** pour vérifier les informations mentionnées dans un article de presse en consultant directement les rapports du GIEC (Groupe d'experts intergouvernemental sur l'évolution du climat).
+    Vous êtes chargé de formuler une **question précise** pour vérifier les informations mentionnées dans un extrait spécifique d'un article de presse en consultant directement les rapports du GIEC (Groupe d'experts intergouvernemental sur l'évolution du climat).
 
     Cette question sera utilisée dans un système de récupération d'information (RAG) pour extraire les sections pertinentes des rapports du GIEC et comparer les informations des rapports avec celles de l'article de presse.
 
-    **Objectif** : La question doit permettre de vérifier si les informations fournies dans la phrase de l'article sont corroborées ou contestées par les preuves scientifiques dans les rapports du GIEC.
+    **Objectif** : La question doit permettre de vérifier si les informations fournies dans la phrase de l'article sont corroborées ou contestées par les preuves scientifiques dans les rapports du GIEC. La question doit donc englober tous les sujets abordés par l'extrait de l'article de presse.
 
     **Instructions** :
 
-    1. Analysez la phrase et son contexte pour identifier les affirmations clés ou les informations à vérifier.
-    2. Formulez une **question claire et spécifique** orientée vers la vérification de ces affirmations ou informations à partir des rapports du GIEC.
+    1. Analysez l'extrait et son contexte pour identifier les affirmations clées et/ou les informations à vérifier.
+    2. Formulez une **question claire et spécifique** orientée vers la vérification de ces affirmations ou informations à partir des rapports du GIEC. La question doit permettre de vérifier toutes les informations de l'extraits. La question peut être un ensemble de questions comme : "Quel est l'impact des activités humaines sur le taux de CO2 dans l'atomsphère ? Comment la concentration du CO2 dans l'atmosphère impact l'argiculture?"
     3. La question doit être **directement vérifiable** dans les rapports du GIEC via un système RAG.
     4. **IMPORTANT** : Répondez uniquement avec la question, sans ajouter d'explications ou de contexte supplémentaire.
 
-    Phrase : {current_phrase}
+    Extrait de l'article de presse : {current_phrase}
 
     Contexte : {context}
 
     Générez uniquement la **question** spécifique qui permettrait de vérifier les informations mentionnées dans cette phrase en consultant les rapports du GIEC via un système de récupération d'information (RAG).
     """
+    
     prompt = PromptTemplate(template=prompt_template, input_variables=[
                             "current_phrase", "context"])
-    return LLMChain(prompt=prompt, llm=llm)
+
+    # Directly chain prompt with LLM using the | operator
+    llm_chain = prompt | llm  # Using simplified chaining without LLMChain
+
+    # Use pipe to create a chain where prompt output feeds into the LLM
+    return llm_chain
 
 
 # Fonction pour générer une question avec Llama3.2
@@ -303,7 +337,7 @@ def generate_questions_parallel(df, llm_chain):
     results = []
 
     # Utilisation de ThreadPoolExecutor pour le traitement parallèle
-    with concurrent.futures.ThreadPoolExecutor(max_workers=14) as executor:
+    with concurrent.futures.ThreadPoolExecutor(max_workers=8) as executor:
         futures = {executor.submit(generate_question, row['current_phrase'], row['context'],
                                    llm_chain): row for _, row in df.iterrows() if row['binary_response'] == '1'}
 
@@ -321,76 +355,43 @@ def generate_questions_parallel(df, llm_chain):
     return pd.DataFrame(results)
 
 
-# Prompts pour chaque LLM (exactitude, biais, ton)
-def creer_prompts():
-    prompt_template_exactitude = """
-    Vous êtes chargé de comparer une phrase d'un article de presse aux informations officielles du rapport du GIEC. Votre tâche consiste à évaluer l'exactitude des informations présentées dans cette phrase, en vous basant sur les sections du rapport du GIEC fournies. 
-
-    **Tâche** : Donnez une réponse binaire (Exact ou Non_exact) et justifiez votre évaluation en listant des éléments précis issus du rapport du GIEC.
-
-    **Phrase de l'article** :
-    {current_phrase}
-
-    **Mentions du rapport du GIEC** :
-    {retrieved_sections}
+def creer_llm_resume(model_name="llama3.2:3b-instruct-fp16"):
     """
-
-    prompt_template_biais = """
-    Vous êtes chargé d'analyser une phrase d'un article de presse pour détecter tout biais potentiel par rapport aux informations officielles du rapport du GIEC. 
-
-    **Tâche** : Donnez une évaluation du biais (Exagéré, Minimisé, ou Neutre) et justifiez votre réponse avec des références aux sections pertinentes du rapport du GIEC.
-
-    **Phrase de l'article** :
-    {current_phrase}
-
-
-    **Mentions du rapport du GIEC** :
-    {retrieved_sections}
+    Creates and configures the LLM chain for summarization.
     """
-
-    prompt_template_ton = """
-    Vous êtes chargé d'analyser le ton d'une phrase d'un article de presse en la comparant aux informations du rapport du GIEC. 
-
-    **Tâche** : Donnez une évaluation du ton (Alarmiste, Minimisant, Neutre, ou Factuel) et justifiez votre réponse.
-
-    **Phrase de l'article** :
-    {current_phrase}
-
-
-    **Mentions du rapport du GIEC** :
-    {retrieved_sections}
-    """
-
-    return prompt_template_exactitude, prompt_template_biais, prompt_template_ton
-
-
-# Prompts pour le résumé des sections du GIEC, basé uniquement sur la question
-def creer_prompt_resume():
+    llm = OllamaLLM(model=model_name)
     prompt_template_resume = """
-    Votre tâche est d'extraire et de **lister uniquement** les faits les plus pertinents contenus dans les sections du rapport du GIEC. Ces faits doivent être directement liés à la question posée dans l'article ou fournir des informations utiles pour y répondre. Vous devez être **exhaustif** et **précis**.
+    **Tâche** : Fournir un résumé structuré des faits contenus dans la section du rapport du GIEC, en les organisant par pertinence pour répondre à la question posée. La réponse doit être sous forme de liste numérotée.
 
     **Instructions** :
-    - **Tâche principale** : Lister **exclusivement** les faits tirés des sections du GIEC qui sont pertinents pour répondre à la question de l'article. N'ajoutez aucun commentaire, aucune interprétation, ni éléments superflus. 
-    - **Aucune justification ou commentaire personnel** : Limitez-vous aux faits du GIEC. Ne vous excusez pas et n'ajoutez pas d'éléments de transition. 
-    - **Exhaustivité** : Soyez aussi exhaustif que possible. Tous les faits pertinents doivent être inclus.
-    - **Clarté et précision** : Chaque fait doit être présenté de manière claire et concise, en une ou deux phrases courtes.
-    - **Organisation** : Utilisez une liste numérotée pour présenter les faits.
-    
-    **Question posée dans l'article** :
-    {question}
-    
-    **Sections du rapport du GIEC associées** :
+    - **Objectif** : Lister tous les faits pertinents, y compris les éléments indirects ou contextuels pouvant enrichir la réponse.
+    - **Éléments à inclure** : 
+        1. Faits scientifiques directement liés à la question.
+        2. Faits indirects apportant un contexte utile.
+        3. Tendances, implications, ou statistiques pertinentes.
+        4. Autres informations utiles pour comprendre le sujet.
+    - **Restrictions** : Ne pas inclure d'opinions ou interprétations, uniquement les faits.
+    - **Format** : Utiliser une liste numérotée, chaque point limité à une ou deux phrases. Commencer par les faits les plus directement liés et finir par les éléments contextuels.
+
+    ### Question :
+    "{question}"
+
+    ### Section du rapport :
     {retrieved_sections}
-    
-    **Exemple de réponse** :
-    
-        1. Le niveau global de la mer a augmenté de 0,19 mètre entre 1901 et 2010, selon les données du rapport.
-        2. Les températures moyennes mondiales ont augmenté de 1,09°C entre 1850-1900 et 2011-2020, ce qui est principalement attribué aux activités humaines.
-        3. Les concentrations de CO2 dans l'atmosphère ont atteint 410 ppm en 2019, soit les niveaux les plus élevés depuis au moins 2 millions d'années.
-        4. La fréquence et l'intensité des vagues de chaleur ont augmenté dans de nombreuses régions du monde depuis les années 1950.
-        5. Les événements extrêmes, tels que les inondations et les sécheresses, sont plus fréquents et plus intenses, en partie à cause du réchauffement climatique.
-        6. La fonte des glaciers contribue à environ 20% de l'élévation du niveau de la mer observée entre 1993 et 2018.
 
+    **Exemple** :
+        1. Le niveau global de la mer a augmenté de 0,19 m entre 1901 et 2010.
+        2. Les températures mondiales ont augmenté de 1,09°C entre 1850-1900 et 2011-2020.
+        3. Les concentrations de CO2 ont atteint 410 ppm en 2019.
+
+
+    **Remarque** : Respecter strictement ces consignes et ne présenter que les faits sous forme de liste numérotée.
     """
+    prompt = PromptTemplate(template=prompt_template_resume, input_variables=[
+                            "question", "retrieved_sections"])
 
-    return PromptTemplate(template=prompt_template_resume, input_variables=["question", "retrieved_sections"])
+    # Directly chain prompt with LLM using the | operator
+    llm_chain = prompt | llm  # Using simplified chaining without LLMChain
+
+    # Use pipe to create a chain where prompt output feeds into the LLM
+    return llm_chain
