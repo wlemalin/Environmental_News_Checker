@@ -23,29 +23,41 @@ def evaluer_trois_taches_sur_phrase(phrase_id, question, current_phrase, section
     Returns:
     - dict: A dictionary containing the evaluation results for accuracy, bias, and tone for the given phrase.
     """
-    
-    # Evaluate accuracy with its own LLM and prompt
-    response_exactitude = llm_sequence_exactitude.invoke({
+    # Ajoutez un dictionnaire avec `task_id` pour chaque tâche
+    input_exactitude = {
+        "task_id": "exactitude",
         "current_phrase": current_phrase,
         "sections_resumees": sections_resumees
-    })
+    }
+    input_biais = {
+        "task_id": "biais",
+        "current_phrase": current_phrase,
+        "sections_resumees": sections_resumees
+    }
+    input_ton = {
+        "task_id": "ton",
+        "current_phrase": current_phrase,
+        "sections_resumees": sections_resumees
+    }
+    
+    # Vérifiez que `task_id` correspond à la tâche attendue pour chaque séquence
+
+    # Évaluation de l'exactitude
+    assert input_exactitude["task_id"] == "exactitude", "Erreur : mauvais task_id pour exactitude."
+    response_exactitude = llm_sequence_exactitude.invoke(input_exactitude)
     exactitude = response_exactitude['text'].strip() if isinstance(response_exactitude, dict) else response_exactitude.strip()
     
-    # Evaluate bias with its own LLM and prompt
-    response_biais = llm_sequence_biais.invoke({
-        "current_phrase": current_phrase,
-        "sections_resumees": sections_resumees
-    })
+    # Évaluation du biais
+    assert input_biais["task_id"] == "biais", "Erreur : mauvais task_id pour biais."
+    response_biais = llm_sequence_biais.invoke(input_biais)
     biais = response_biais['text'].strip() if isinstance(response_biais, dict) else response_biais.strip()
     
-    # Evaluate tone with its own LLM and prompt
-    response_ton = llm_sequence_ton.invoke({
-        "current_phrase": current_phrase,
-        "sections_resumees": sections_resumees
-    })
+    # Évaluation du ton
+    assert input_ton["task_id"] == "ton", "Erreur : mauvais task_id pour ton."
+    response_ton = llm_sequence_ton.invoke(input_ton)
     ton = response_ton['text'].strip() if isinstance(response_ton, dict) else response_ton.strip()
     
-    # Return results for this phrase
+    # Retourne les résultats pour cette phrase
     return {
         "id": phrase_id,
         "question": question,
@@ -55,7 +67,6 @@ def evaluer_trois_taches_sur_phrase(phrase_id, question, current_phrase, section
         "biais": biais,
         "ton": ton
     }
-
 # Function to parallelize evaluation of phrases for each metric with distinct LLMs
 def evaluer_phrase_parallele(rag_df, llm_sequence_exactitude, llm_sequence_biais, llm_sequence_ton):
     """
