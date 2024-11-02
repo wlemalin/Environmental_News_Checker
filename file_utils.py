@@ -14,25 +14,9 @@ Fonctionnalités principales :
 import csv
 import json
 import os
-
 import pandas as pd
-
 from txt_manipulation import parse_llm_response
 
-
-
-# Fonction pour sauvegarder les sections indexées dans un fichier JSON
-def save_database(sections: list[dict], output_path: str) -> None:
-    """
-    Sauvegarde les sections indexées dans un fichier JSON.
-
-    Args:
-        sections (list[dict]): Liste des sections à sauvegarder.
-        output_path (str): Chemin du fichier JSON de destination.
-    """
-    with open(output_path, 'w', encoding='utf-8') as f:
-        json.dump(sections, f, ensure_ascii=False, indent=4)
-    print(f"Sections sauvegardées dans {output_path}")
 
 
 # Fonction pour charger les embeddings du rapport

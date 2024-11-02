@@ -2,227 +2,272 @@
 # -*- coding: utf-8 -*-
 """
 Script principal pour le traitement d'un article de presse et d'un rapport du GIEC.
-Ce script effectue plusieurs tâches liées au traitement de texte et à l'intelligence artificielle, réparties en quatre étapes :
-
-1. Nettoyage et prétraitement de l'article de presse : Suppression des éléments non pertinents et préparation du texte pour les étapes suivantes.
-2. Extraction, nettoyage et indexation des sections du rapport PDF : Transformation du rapport en texte exploitable, puis découpage en sections indexées.
-3. Identification des mentions directes et indirectes au GIEC : Utilisation d'un modèle d'embeddings pour comparer les phrases de l'article avec les sections du rapport, et détection des termes du glossaire.
-4. Vérification des faits avec un modèle LLM (Llama) : Génération de réponses basées sur les sections extraites du rapport en utilisant un modèle de type RAG (Retrieve-and-Generate).
 """
 
-from nltk.tokenize import sent_tokenize
-import nltk
-import pandas as pd
-from langchain import LLMChain, PromptTemplate
-from langchain_ollama import OllamaLLM 
-from file_utils import save_to_csv
-from llms import (analyze_paragraphs_parallel, create_questions_llm,
-                  generate_questions_parallel, parsed_responses, prompt_selection_phrase_pertinente)
-from pdf_processing import process_pdf_to_index
+import os
 
-from topic_classifier import generate_context_windows, keywords_for_each_chunk
-from txt_manipulation import decouper_en_phrases, pretraiter_article
-from resume_sources import process_resume
-from reponse import process_reponses
+from Evaluation_API import process_evaluation_api
+from filtrer_extraits import identifier_extraits_sur_giec
+from filtrer_extraits_api import identifier_extraits_sur_giec_api
 from metrics import process_evaluation
+from pdf_processing import process_pdf_to_index
+from questions import question_generation_process
+from questions_api import question_generation_process_api
+from reponse import process_reponses
+from Reponse_API import rag_process_api
+from Resume_API import process_resume_api
+from resume_sources import process_resume
+from txt_manipulation import pretraiter_article
+from selection_rapport import find_report_by_title
 
-def run_script_1():
+# from topic_classifier import glossaire_topics
+
+
+def clean_press_articles():
     """
-    Première Partie : Nettoyage de l'article de Presse.
-    Charge et prétraite l'article en supprimant les éléments non pertinents, puis le sauvegarde dans un dossier.
+    Première Partie : Nettoyage de plusieurs articles de presse.
     """
-    chemin_article = '_ _ C_est plus confortable de se dire que ce n_est pas si grave __cleaned_cleaned.txt'
-    chemin_dossier_nettoye = '/Users/mateodib/Desktop/Environmental_News_Checker-Mateo/Nettoye_Articles/'
-    # Prétraiter l'article
-    pretraiter_article(chemin_article, chemin_dossier_nettoye)
+    chemin_articles = 'Data/presse/articles/'
+    chemin_dossier_nettoye = 'Data/presse/articles_cleaned/'
+
+    # Lister tous les fichiers .txt dans le dossier des articles
+    fichiers_articles = [f for f in os.listdir( chemin_articles) if f.endswith('.txt')]
+
+    # Itérer sur chaque fichier d'article
+    for fichier in fichiers_articles:
+        chemin_article = os.path.join(chemin_articles, fichier)
+        chemin_article_nettoye = os.path.join(chemin_dossier_nettoye, fichier.replace('.txt', '_cleaned.txt'))
+        pretraiter_article(chemin_article, chemin_article_nettoye, chemin_dossier_nettoye)
 
 
-def run_script_2():
+def process_ipcc_reports():
     """
-    Seconde Partie : Nettoyage du rapport de synthèse et indexation.
-    Extrait le texte d'un rapport PDF, le nettoie et l'indexe en sections, puis sauvegarde le tout dans un fichier JSON.
+    Seconde Partie : Nettoyage et indexation de plusieurs rapports IPCC.
     """
-    chemin_rapport_pdf = 'IPCC_AR6_SYR_SPM.pdf'
-    chemin_output_json = '/Users/mateodib/Desktop/Environmental_News_Checker-Mateo/rapport_indexed.json'
-    # Traiter le PDF et sauvegarder les sections indexées
-    process_pdf_to_index(chemin_rapport_pdf, chemin_output_json)
-
-
-def run_script_3():
-    """
-    Troisième Partie : Identification des mentions directes/indirectes au GIEC.
-    Compare les phrases d'un article avec les sections d'un rapport et identifie les termes du glossaire.
-    Sauvegarde les résultats dans un fichier CSV.
-    """
-    chemin_cleaned_article = '_ _ C_est plus confortable de se dire que ce n_est pas si grave __cleaned_cleaned.txt'
-    chemin_resultats_csv = '/Users/mateodib/Desktop/Environmental_News_Checker-Mateo/mentions_extraites.csv'
-    chemin_glossaire = 'translated_glossary_with_definitions.csv'
-    # chemin_rapport_embeddings = './IPCC_Answer_Based/rapport_indexed.json'
-
-    # Charger le glossaire (termes et définitions)
-    glossaire = pd.read_csv(chemin_glossaire)
-    termes_glossaire = glossaire['Translated_Term'].tolist()
-    definitions_glossaire = glossaire['Translated_Definition'].tolist()
-
-    with open(chemin_cleaned_article, 'r', encoding='utf-8') as file:
-        texte_nettoye = file.read()
-    # Découper l'article en phrases
-    phrases = decouper_en_phrases(texte_nettoye)
-
-    # Comparer l'article avec le rapport
-    mentions = keywords_for_each_chunk(
-        phrases, termes_glossaire, definitions_glossaire)
-
-    # Sauvegarder les correspondances dans un fichier CSV
-    save_to_csv(mentions, chemin_resultats_csv, [
-        "phrase", "contexte", "glossary_terms", "definitions"])
-
-
-def run_script_4():
-    nltk.download('punkt')  # Téléchargez le modèle de tokenisation des phrases
-
+    chemin_rapports_pdf = 'Data/IPCC/rapports/'
+    chemin_output_indexed = 'Data/IPCC/rapports_indexed/'
     
-    llm_chain = prompt_selection_phrase_pertinente()
+    # Vérifier si le dossier de destination existe, sinon le créer
+    if not os.path.exists(os.path.dirname(chemin_output_indexed)):
+        os.makedirs(os.path.dirname(chemin_output_indexed))
+        
+    # Lister tous les fichiers .pdf dans le dossier des rapports
+    fichiers_rapports = [f for f in os.listdir(chemin_rapports_pdf) if f.endswith('.pdf')]
 
-    # Chemin vers le fichier texte
-    file_path = "_ _ C_est plus confortable de se dire que ce n_est pas si grave __cleaned_cleaned.txt"
+    # Itérer sur chaque fichier de rapport
+    for fichier in fichiers_rapports:
+        chemin_rapport_pdf = os.path.join(chemin_rapports_pdf, fichier)
+        chemin_rapport_indexed = os.path.join(chemin_output_indexed, fichier.replace('.pdf', '_indexed.json'))
 
-    # Charger et regrouper le texte en phrases
-    with open(file_path, 'r', encoding='utf-8') as f:
-        text = f.read()
+        
 
-    sentences = sent_tokenize(text)  # Divise le texte en phrases
+        process_pdf_to_index(chemin_rapport_pdf, chemin_rapport_indexed)
 
-    splitted_text = generate_context_windows(sentences)
+# def identify_ipcc_mentions():
+#     """
+#     Troisième Partie : Identification des mentions directes/indirectes au GIEC.
+#     """
+#     chemin_cleaned_article = '_ _ C_est plus confortable de se dire que ce n_est pas si grave __cleaned_cleaned.txt'
+#     chemin_resultats_csv = '/Users/mateodib/Desktop/Environmental_News_Checker-Mateo/mentions_extraites.csv'
+#     chemin_glossaire = 'translated_glossary_with_definitions.csv'
+#     glossaire_topics(chemin_glossaire, chemin_cleaned_article,
+#                      chemin_resultats_csv)
 
-    # Analyser les paragraphes avec Llama 3.2 en parallèle
-    analysis_results = analyze_paragraphs_parallel(splitted_text, llm_chain)
 
-    # Sauvegarder les résultats dans un fichier CSV
-    df = pd.DataFrame(analysis_results)
+def extract_relevant_ipcc_references():
+    """
+    Quatrième Partie : Identification des extraits relatifs au GIEC.
+    """
+    chemin_articles_nettoyes = 'Data/presse/articles_cleaned/'
+    chemin_output_chunked = 'Data/presse/articles_chunked/'
     
-    output_path = "/Users/mateodib/Desktop/Environmental_News_Checker-Mateo/climate_analysis_results.csv"
-    df.to_csv(output_path, index=False)
-    print(f"Results saved to {output_path}")
+    # Vérifier si le dossier de destination existe, sinon le créer
+    if not os.path.exists(os.path.dirname(chemin_output_chunked)):
+        os.makedirs(os.path.dirname(chemin_output_chunked))
+    
+    # Lister tous les fichiers .txt nettoyés dans le dossier des articles
+    fichiers_articles_nettoyes = [f for f in os.listdir(chemin_articles_nettoyes) if f.endswith('_cleaned.txt')]
+    
 
-    # Conversion de la liste en DataFrame
-    analysis_results_df = pd.DataFrame(analysis_results)
+    # Itérer sur chaque fichier nettoyé
+    for fichier in fichiers_articles_nettoyes:
+        file_path = os.path.join(chemin_articles_nettoyes, fichier)
+        output_path = os.path.join(chemin_output_chunked, fichier.replace('_cleaned.txt', '_analysis_results.csv'))
+        output_path_improved = os.path.join(chemin_output_chunked, fichier.replace('_cleaned.txt', '_final_analysis_results_improved.csv'))
 
-    # Appliquer la méthode de parsing au DataFrame
-    parsed_df_improved = parsed_responses(analysis_results_df)
-
-    # Sauvegarder le DataFrame avec les résultats parsés
-    output_path_improved = "/Users/mateodib/Desktop/Environmental_News_Checker-Mateo/final_climate_analysis_results_improved.csv"
-    parsed_df_improved['subjects'] = parsed_df_improved['subjects'].apply(
-        lambda x: ', '.join(x))
-    parsed_df_improved = parsed_df_improved.head(3)
-    parsed_df_improved.to_csv(output_path_improved, index=False)
-
-    # Affichage de quelques lignes du DataFrame final
-    print(parsed_df_improved.head())
-
-
-def run_script_5():
-    # Charger la base de données CSV contenant les phrases, la réponse binaire, et le contexte
-    df = pd.read_csv(
-        "/Users/mateodib/Desktop/Environmental_News_Checker-Mateo/final_climate_analysis_results_improved.csv")
-
-    # Convertir la colonne 'binary_response' en texte (si elle est en format texte)
-    df['binary_response'] = df['binary_response'].astype(str)
-
-    # Filtrer uniquement les phrases identifiées comme liées à l'environnement (réponse binaire '1')
-    df_environment = df[df['binary_response'] == '1']
-
-    # Créer la LLMChain pour la génération des questions
-    llm_chain = create_questions_llm()
-
-    # Générer les questions pour les phrases liées à l'environnement
-    questions_df = generate_questions_parallel(df_environment, llm_chain)
-
-    # Sauvegarder les résultats dans un nouveau fichier CSV
-    output_path_questions = "/Users/mateodib/Desktop/Environmental_News_Checker-Mateo/final_climate_analysis_with_questions.csv"
-    questions_df.to_csv(output_path_questions, index=False)
-    print(f"Questions generated and saved to {output_path_questions}")
+        if LocalLLM:
+            identifier_extraits_sur_giec(file_path, output_path, output_path_improved)
+        else:
+            identifier_extraits_sur_giec_api(file_path, output_path, output_path_improved)
 
 
-def resume_sources():
-    chemin_csv_questions = "/Users/mateodib/Desktop/Environmental_News_Checker-Mateo/final_climate_analysis_with_questions.csv" # final_climate_analysis_with_questions.csv TODO
-    chemin_resultats_csv = "/Users/mateodib/Desktop/Environmental_News_Checker-Mateo/resume_sections_results.csv"
-    chemin_rapport_embeddings = "/Users/mateodib/Desktop/Environmental_News_Checker-Mateo/rapport_indexed.json"
-    process_resume(chemin_csv_questions, chemin_rapport_embeddings, chemin_resultats_csv, 5) # Top-K = 5
+def generate_questions():
+    """
+    Cinquième Partie : Génération de questions pour plusieurs fichiers.
+    """
+    chemin_articles_chunked = 'Data/presse/articles_chunked/'
+    chemin_output_questions = 'Data/resultats/resultats_intermediaires/questions/'
+    
+    # Vérifier si le dossier de destination existe, sinon le créer
+    if not os.path.exists(os.path.dirname(chemin_output_questions)):
+        os.makedirs(os.path.dirname(chemin_output_questions))
+    
+    
+    # Lister tous les fichiers .csv dans le dossier des articles analysés
+    fichiers_analysis_results = [f for f in os.listdir(chemin_articles_chunked) if f.endswith('_final_analysis_results_improved.csv')]
+    
 
-def run_script_6():
-    chemin_questions_csv = "/Users/mateodib/Desktop/Environmental_News_Checker-Mateo/resume_sections_results.csv"
-    chemin_resultats_csv = "/Users/mateodib/Desktop/Environmental_News_Checker-Mateo/rag_results.csv"
-    process_reponses(chemin_questions_csv, chemin_resultats_csv)
+    # Itérer sur chaque fichier d'analyse
+    for fichier in fichiers_analysis_results:
+        file_path = os.path.join(chemin_articles_chunked, fichier)
+        output_path_questions = os.path.join(chemin_output_questions, fichier.replace('_final_analysis_results_improved.csv', '_with_questions.csv'))
+
+        if LocalLLM:
+            question_generation_process(file_path, output_path_questions)
+        else:
+            question_generation_process_api(file_path, output_path_questions)
 
 
-def run_script_7():
-    rag_csv = "/Users/mateodib/Desktop/Environmental_News_Checker-Mateo/rag_results.csv"
-    resultats_csv = "/Users/mateodib/Desktop/Environmental_News_Checker-Mateo/evaluation_results.csv"
-    process_evaluation(rag_csv, resultats_csv)
+
+def summarize_source_sections(LocalLLM):
+    """
+    Résumé des sources pour chaque question pour plusieurs fichiers.
+    """
+    chemin_csv_questions = 'Data/resultats/resultats_intermediaires/questions/'
+    chemin_resultats_sources = 'Data/resultats/resultats_intermediaires/sources_resumees/'
+    dossier_rapport_embeddings = 'Data/IPCC/rapports_indexed/'
+    
+    # Vérifier si le dossier de destination existe, sinon le créer
+    if not os.path.exists(os.path.dirname(chemin_resultats_sources)):
+        os.makedirs(os.path.dirname(chemin_resultats_sources))
+
+    # Lister tous les fichiers .csv dans le dossier des questions générées
+    fichiers_questions = [f for f in os.listdir(chemin_csv_questions) if f.endswith('_with_questions.csv')]
+    
+    # Itérer sur chaque fichier de questions
+    for fichier in fichiers_questions:
+        chemin_csv_question = os.path.join(chemin_csv_questions, fichier)
+        chemin_resultats_csv = os.path.join(chemin_resultats_sources, fichier.replace('_with_questions.csv', '_resume_sections_results.csv'))
+        article_title = fichier.replace('_with_questions.csv', '')
+        nom_rapport = find_report_by_title(article_title)
+        
+        # Remove the colon
+        nom_rapport = nom_rapport.replace(":", "")
+        print(f"Voici le rapport le plus proche retrouvé : {nom_rapport}")
+        
+        # Ensure the path ends with .json
+        chemin_rapport_embeddings = os.path.join(dossier_rapport_embeddings, f"{nom_rapport}.json")
 
 
-def run_all_scripts():
+        if LocalLLM:
+            process_resume(chemin_csv_question, chemin_rapport_embeddings, chemin_resultats_csv, 5)  # Top-K = 5
+        else:
+            process_resume_api(chemin_csv_question, chemin_rapport_embeddings, chemin_resultats_csv, 5)
+
+
+def generate_rag_responses(LocalLLM):
+    """
+    Sixième Partie : Génération de réponses (RAG) pour plusieurs fichiers.
+    """
+    chemin_sources_resumees = 'Data/resultats/resultats_intermediaires/sources_resumees/'
+    chemin_output_reponses = 'Data/resultats/resultats_intermediaires/reponses/'
+
+    # Vérifier si le dossier de destination existe, sinon le créer
+    if not os.path.exists(os.path.dirname(chemin_output_reponses)):
+        os.makedirs(os.path.dirname(chemin_output_reponses))
+        
+    # Lister tous les fichiers .csv dans le dossier des résumés de sources
+    fichiers_sources_resumees = [f for f in os.listdir(chemin_sources_resumees) if f.endswith('_resume_sections_results.csv')]
+    
+    
+    # Itérer sur chaque fichier de résumés de sources
+    for fichier in fichiers_sources_resumees:
+        chemin_questions_csv = os.path.join(chemin_sources_resumees, fichier)
+        chemin_resultats_csv = os.path.join(chemin_output_reponses, fichier.replace('_resume_sections_results.csv', '_rag_results.csv'))
+
+
+        if LocalLLM:
+            process_reponses(chemin_questions_csv, chemin_resultats_csv)
+        else:
+            rag_process_api(chemin_questions_csv, chemin_resultats_csv)
+
+
+def evaluate_generated_responses(LocalLLM):
+    """
+    Septième Partie : Évaluation des réponses pour plusieurs fichiers.
+    """
+    chemin_reponses = 'Data/resultats/resultats_intermediaires/reponses/'
+    chemin_output_evaluation = 'Data/resultats/resultats_intermediaires/evaluation/'
+    chemin_questions_csv = 'Data/resultats/resultats_intermediaires/questions/'
+    
+    # Vérifier si le dossier de destination existe, sinon le créer
+    if not os.path.exists(os.path.dirname(chemin_output_evaluation)):
+        os.makedirs(os.path.dirname(chemin_output_evaluation))
+
+    # Lister tous les fichiers .csv dans le dossier des réponses générées
+    fichiers_reponses = [f for f in os.listdir(chemin_reponses) if f.endswith('_rag_results.csv')]
+
+    # Itérer sur chaque fichier de réponses
+    for fichier in fichiers_reponses:
+        rag_csv = os.path.join(chemin_reponses, fichier)
+        resultats_csv = os.path.join(chemin_output_evaluation, fichier.replace('_rag_results.csv', '_evaluation_results.csv'))
+        chemin_question_csv = os.path.join(chemin_questions_csv, fichier.replace('_rag_results.csv', '_with_questions.csv'))
+
+
+        if LocalLLM:
+            process_evaluation(chemin_question_csv, rag_csv, resultats_csv)
+        else:
+            process_evaluation_api(chemin_question_csv, rag_csv, resultats_csv)
+
+
+def run_full_processing_pipeline(LocalLLM):
     """
     Exécute toutes les parties du script, dans l'ordre.
     """
-    run_script_1()
-    run_script_2()
-    # run_script_3()
-    run_script_4()
-    run_script_5()  # Create questions
-    resume_sources()
-    run_script_6()  # Answer questions
-    run_script_7()
+    clean_press_articles()
+    process_ipcc_reports()
+    extract_relevant_ipcc_references()
+    generate_questions()
+    summarize_source_sections(LocalLLM)
+    generate_rag_responses(LocalLLM)
+    evaluate_generated_responses(LocalLLM)
 
 
 if __name__ == "__main__":
-    """
-    Interface principale pour sélectionner et exécuter l'une des parties du script ou l'ensemble.
-    """
+    # Demander à l'utilisateur s'il veut utiliser un LLM local
+    use_local_llm = input("Souhaitez-vous utiliser un LLM local ? (y/n) : ").strip().lower()
+    LocalLLM = use_local_llm == 'y'
+
     print("Choose an option:")
-    print("1. Clean press articles")
-    print("2. Embed IPCC report")
-    print("3. Topic Recognition")
-    print("4. Check for IPCC references")
-    print("5. Create question for each chunk")
-    print("t. Resume sections source")
-    print("6. Run RAG on questions")
-    print("7. Get metrics")
-    print("8. Run all scripts")
+    print("1. Clean press article")
+    print("2. Process IPCC report")
+    print("3. Identify IPCC mentions")
+    print("4. Extract relevant IPCC references")
+    print("5. Generate questions for each chunk")
+    print("6. Summarize source sections")
+    print("7. Generate RAG responses for questions")
+    print("8. Evaluate generated responses")
+    print("9. Run full processing pipeline")
     choice = input("Enter your choice: ")
 
     match choice:
         case "1":
-            print("You chose Option 1")
-            run_script_1()
+            clean_press_articles()
         case "2":
-            print("You chose Option 2")
-            run_script_2()
-        case "3":
-            print("You chose Option 3")
-            run_script_3()
+            process_ipcc_reports()
+        # case "3":
+            # identify_ipcc_mentions()
         case "4":
-            print("You chose Option 4")
-            run_script_4()
+            extract_relevant_ipcc_references()
         case "5":
-            print("You chose Option 5")
-            run_script_5()
-        case "t":
-            print("You chose Option t")
-            resume_sources()
+            generate_questions()
         case "6":
-            print("You chose Option 6")
-            run_script_6()
+            summarize_source_sections(LocalLLM)
         case "7":
-            print("You chose Option 7")
-            run_script_7()
+            generate_rag_responses(LocalLLM)
         case "8":
-            print("You chose option 8.")
-            run_all_scripts()
+            evaluate_generated_responses(LocalLLM)
+        case "9":
+            run_full_processing_pipeline(LocalLLM)
         case _:
             print("Invalid choice. Please choose a valid option.")
-
-
-

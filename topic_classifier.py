@@ -12,6 +12,12 @@ Fonctionnalités principales :
 """
 
 # Fonction pour détecter les termes du glossaire dans une phrase
+
+import pandas as pd
+from file_utils import save_to_csv
+from txt_manipulation import decouper_en_phrases
+
+
 def detect_glossary_terms(phrase: str, termes_glossaire: list[str]) -> list[str]:
     """
     Détecte les termes du glossaire dans une phrase donnée.
@@ -25,7 +31,6 @@ def detect_glossary_terms(phrase: str, termes_glossaire: list[str]) -> list[str]
     """
     phrase_lower = phrase.lower()
     return [term for term in termes_glossaire if term.lower() in phrase_lower]
-
 
 
 def generate_context_windows(phrases, window_size=2, len_phrase_focus=1):
@@ -43,8 +48,10 @@ def generate_context_windows(phrases, window_size=2, len_phrase_focus=1):
     focus_window = []
     for i in range(0, len(phrases), 3):
         # Combine les phrases avant et après la phrase actuelle dans une seule chaîne de caractères
-        context_window = " ".join(phrases[max(0, i - window_size):min(i + window_size + 1, len(phrases))])
-        focus_window =  " ".join(phrases[max(0, i - len_phrase_focus):min(i + len_phrase_focus + 1, len(phrases))])
+        context_window = " ".join(
+            phrases[max(0, i - window_size):min(i + window_size + 1, len(phrases))])
+        focus_window = " ".join(
+            phrases[max(0, i - len_phrase_focus):min(i + len_phrase_focus + 1, len(phrases))])
 
         windows.append({
             "id": i,  # Ajout de l'index
@@ -93,3 +100,23 @@ def keywords_for_each_chunk(phrases_article: list[str], termes_glossaire: list[s
         })
     print(f"{len(mentions)} mentions trouvées.")
     return mentions
+
+
+def glossaire_topics(chemin_glossaire, chemin_cleaned_article, chemin_resultats_csv):
+    # Charger le glossaire (termes et définitions)
+    glossaire = pd.read_csv(chemin_glossaire)
+    termes_glossaire = glossaire['Translated_Term'].tolist()
+    definitions_glossaire = glossaire['Translated_Definition'].tolist()
+
+    with open(chemin_cleaned_article, 'r', encoding='utf-8') as file:
+        texte_nettoye = file.read()
+    # Découper l'article en phrases
+    phrases = decouper_en_phrases(texte_nettoye)
+
+    # Comparer l'article avec le rapport
+    mentions = keywords_for_each_chunk(
+        phrases, termes_glossaire, definitions_glossaire)
+
+    # Sauvegarder les correspondances dans un fichier CSV
+    save_to_csv(mentions, chemin_resultats_csv, [
+        "phrase", "contexte", "glossary_terms", "definitions"])
