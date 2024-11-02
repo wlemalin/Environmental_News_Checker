@@ -49,7 +49,7 @@ def pre_nettoyage_regex(texte: str) -> str:
 
 
 # Fonction pour prétraiter l'article et sauvegarder le texte nettoyé
-def pretraiter_article(chemin_article: str, chemin_dossier_nettoye: str) -> str:
+def pretraiter_article(chemin_article: str, chemin_cleaned_article: str, chemin_dossier_nettoye: str) -> str:
     """
     Prétraite un article en appliquant le pré-nettoyage et en sauvegardant le texte nettoyé dans un fichier.
 
@@ -67,7 +67,6 @@ def pretraiter_article(chemin_article: str, chemin_dossier_nettoye: str) -> str:
     if not os.path.exists(chemin_dossier_nettoye):
         os.makedirs(chemin_dossier_nettoye)
 
-    chemin_cleaned_article = os.path.join(chemin_dossier_nettoye, os.path.basename(chemin_article).replace('.txt', '_cleaned.txt'))
     with open(chemin_cleaned_article, 'w', encoding='utf-8') as file:
         file.write(texte_pre_nettoye)
     return chemin_cleaned_article
