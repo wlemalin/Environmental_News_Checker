@@ -28,6 +28,8 @@ def clean_press_articles():
     """
     chemin_articles = 'Data/presse/articles/'
     chemin_dossier_nettoye = 'Data/presse/articles_cleaned/'
+    if not os.path.exists(os.path.dirname(chemin_dossier_nettoye)):
+        os.makedirs(os.path.dirname(chemin_dossier_nettoye))
 
     # Lister tous les fichiers .txt dans le dossier des articles
     fichiers_articles = [f for f in os.listdir( chemin_articles) if f.endswith('.txt')]
@@ -106,8 +108,6 @@ def generate_questions():
     """
     chemin_articles_chunked = 'Data/presse/articles_chunked/'
     chemin_output_questions = 'Data/resultats/resultats_intermediaires/questions/'
-    
-    # Vérifier si le dossier de destination existe, sinon le créer
     if not os.path.exists(os.path.dirname(chemin_output_questions)):
         os.makedirs(os.path.dirname(chemin_output_questions))
     
@@ -122,6 +122,17 @@ def generate_questions():
         output_path_questions = os.path.join(chemin_output_questions, fichier.replace('_final_analysis_results_improved.csv', '_with_questions.csv'))
 
         
+
+    if not os.path.exists(os.path.dirname(chemin_output_questions)):
+        os.makedirs(os.path.dirname(chemin_output_questions))
+    
+    # Lister tous les fichiers .csv dans le dossier des articles analysés
+    fichiers_analysis_results = [f for f in os.listdir(chemin_articles_chunked) if f.endswith('_final_analysis_results_improved.csv')]
+    
+    # Itérer sur chaque fichier d'analyse
+    for fichier in fichiers_analysis_results:
+        file_path = os.path.join(chemin_articles_chunked, fichier)
+        output_path_questions = os.path.join(chemin_output_questions, fichier.replace('_final_analysis_results_improved.csv', '_with_questions.csv'))
 
         if LocalLLM:
             question_generation_process(file_path, output_path_questions)
@@ -140,6 +151,9 @@ def summarize_source_sections(LocalLLM):
     if not os.path.exists(os.path.dirname(chemin_resultats_sources)):
         os.makedirs(os.path.dirname(chemin_resultats_sources))
 
+
+    if not os.path.exists(os.path.dirname(chemin_resultats_sources)):
+        os.makedirs(os.path.dirname(chemin_resultats_sources))
 
     # Lister tous les fichiers .csv dans le dossier des questions générées
     fichiers_questions = [f for f in os.listdir(chemin_csv_questions) if f.endswith('_with_questions.csv')]
@@ -180,6 +194,17 @@ def generate_rag_responses(LocalLLM):
         chemin_resultats_csv = os.path.join(chemin_output_reponses, fichier.replace('_resume_sections_results.csv', '_rag_results.csv'))
 
 
+    if not os.path.exists(os.path.dirname(chemin_output_reponses)):
+        os.makedirs(os.path.dirname(chemin_output_reponses))
+        
+    # Lister tous les fichiers .csv dans le dossier des résumés de sources
+    fichiers_sources_resumees = [f for f in os.listdir(chemin_sources_resumees) if f.endswith('_resume_sections_results.csv')]
+    
+    # Itérer sur chaque fichier de résumés de sources
+    for fichier in fichiers_sources_resumees:
+        chemin_questions_csv = os.path.join(chemin_sources_resumees, fichier)
+        chemin_resultats_csv = os.path.join(chemin_output_reponses, fichier.replace('_resume_sections_results.csv', '_rag_results.csv'))
+
         if LocalLLM:
             process_reponses(chemin_questions_csv, chemin_resultats_csv)
         else:
@@ -193,8 +218,6 @@ def evaluate_generated_responses(LocalLLM):
     chemin_reponses = 'Data/resultats/resultats_intermediaires/reponses/'
     chemin_output_evaluation = 'Data/resultats/resultats_intermediaires/evaluation/'
     chemin_questions_csv = 'Data/resultats/resultats_intermediaires/questions/'
-    
-    # Vérifier si le dossier de destination existe, sinon le créer
     if not os.path.exists(os.path.dirname(chemin_output_evaluation)):
         os.makedirs(os.path.dirname(chemin_output_evaluation))
 
@@ -206,7 +229,6 @@ def evaluate_generated_responses(LocalLLM):
         rag_csv = os.path.join(chemin_reponses, fichier)
         resultats_csv = os.path.join(chemin_output_evaluation, fichier.replace('_rag_results.csv', '_evaluation_results.csv'))
         chemin_question_csv = os.path.join(chemin_questions_csv, fichier.replace('_rag_results.csv', '_with_questions.csv'))
-
 
         if LocalLLM:
             process_evaluation(chemin_question_csv, rag_csv, resultats_csv)
