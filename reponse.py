@@ -1,12 +1,20 @@
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import pandas as pd
-from langchain import LLMChain, PromptTemplate
-from langchain_ollama import OllamaLLM
 from tqdm import tqdm
-
+from prompt import creer_prompt_reponses
 
 # Compare questions to the summarized report sections
 def answer_questions_parallel(questions, llm_chain):
+    """
+    Processes multiple questions in parallel to generate answers using the LLM chain.
+
+    Args:
+        questions (DataFrame): A pandas DataFrame containing the questions and relevant sections.
+        llm_chain: A language model chain for generating responses.
+
+    Returns:
+        list: A list of dictionaries containing question IDs, questions, summarized sections, original sections, and generated answers.
+    """
     results = []
 
     with ThreadPoolExecutor(max_workers=4) as executor:
@@ -44,6 +52,19 @@ def answer_questions_parallel(questions, llm_chain):
 
 # Function to generate a response
 def answer_question(question, resume_sections, sections_brutes, llm_chain, ID):
+    """
+    Generates an answer for a given question using the provided LLM chain.
+
+    Args:
+        question (str): The question to be answered.
+        resume_sections (str): Consolidated text summarizing the relevant report sections.
+        sections_brutes (str): Original sections of the report.
+        llm_chain: A language model chain used to generate responses.
+        ID (int): The unique identifier for the question.
+
+    Returns:
+        tuple: Contains the question, summarized sections, generated answer, question ID, and original sections.
+    """
     inputs = {
         "question": question,
         "consolidated_text": resume_sections
@@ -56,38 +77,25 @@ def answer_question(question, resume_sections, sections_brutes, llm_chain, ID):
 
 # Main function to execute the RAG process
 def process_reponses(chemin_questions_csv, chemin_resultats_csv):
-    questions_df = pd.read_csv(chemin_questions_csv)
-
-    # Initialize LLM with the specified model
-    llm = OllamaLLM(model="llama3.2:3b-instruct-fp16")
-
-    # Define the prompt for the LLM
-    prompt_template = """
-    Vous êtes un expert en climatologie. Répondez à la question ci-dessous en vous basant uniquement sur les sections pertinentes du rapport du GIEC.
-
-    **Instructions** :
-    1. Utilisez les informations des sections pour formuler une réponse précise et fondée.
-    2. Justifiez votre réponse en citant les sections, si nécessaire.
-    3. Limitez votre réponse aux informations fournies dans les sections.
-
-    **Question** : {question}
-    
-    **Sections du rapport** : {consolidated_text}
-    
-    **Réponse** :
-    - **Résumé de la réponse** : (Réponse concise)
-    - **Justification basée sur le rapport** : (Citez et expliquez les éléments pertinents)
     """
+    Executes the retrieval-augmented generation (RAG) process to generate answers and save them to a CSV file.
 
-    prompt = PromptTemplate(template=prompt_template, input_variables=[
-                            "question", "consolidated_text"])
-    llm_chain = prompt | llm  # Using simplified chaining without LLMChain
+    Args:
+        chemin_questions_csv (str): Path to the CSV file containing questions.
+        chemin_resultats_csv (str): Path to the output CSV file where results will be saved.
+
+    Workflow:
+        1. Load questions from the input CSV file into a pandas DataFrame.
+        2. Create an LLM chain using the `creer_prompt_reponses` function.
+        3. Process the questions in parallel to generate answers using the LLM chain.
+        4. Save the generated answers to the output CSV file.
+        5. Print a confirmation message indicating where the results have been saved.
+    """
+    questions_df = pd.read_csv(chemin_questions_csv)
+    llm_chain = creer_prompt_reponses()
 
     # Generate answers and save them to CSV
     mentions = answer_questions_parallel(questions_df, llm_chain)
     df_mentions = pd.DataFrame(mentions)
     df_mentions.to_csv(chemin_resultats_csv, index=False, quotechar='"')
     print(f"Mentions saved to file {chemin_resultats_csv}")
-    
-
-
