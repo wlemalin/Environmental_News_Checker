@@ -206,8 +206,7 @@ def run_full_processing_pipeline(LocalLLM):
 
 if __name__ == "__main__":
     # Demander à l'utilisateur s'il veut utiliser un LLM local
-    use_local_llm = input(
-        "Souhaitez-vous utiliser un LLM local ? (y/n) : ").strip().lower()
+    use_local_llm = input("Souhaitez-vous utiliser un LLM local ? (y/n) : ").strip().lower()
     LocalLLM = use_local_llm == 'y'
 
     print("Choose an option:")
@@ -224,11 +223,11 @@ if __name__ == "__main__":
 
     match choice:
         case "1":
-            clean_press_article()
+            clean_press_articles()
         case "2":
-            process_ipcc_report()
-        case "3":
-            identify_ipcc_mentions()
+            process_ipcc_reports()
+        # case "3":
+            # identify_ipcc_mentions()
         case "4":
             extract_relevant_ipcc_references()
         case "5":
