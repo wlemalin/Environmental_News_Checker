@@ -13,9 +13,6 @@ import pandas as pd
 import replicate
 from tqdm import tqdm
 
-# Configure the Replicate API key
-os.environ["REPLICATE_API_TOKEN"] = "r8_KVdlDIHTh9T6xEuEJhDkNxvfCXleqe814zH72"
-replicate.api_token = os.getenv("REPLICATE_API_TOKEN")
 
 # Load questions from CSV file
 
@@ -58,7 +55,7 @@ def rag_answer_generation_with_replicate(question, relevant_summaries):
 
     # Call Replicate API to get the answer
     try:
-        output = replicate.run("meta/meta-llama-3.1-405b-instruct",
+        output = replicate.run("meta/meta-llama-3-70b-instruct",
                                input={"prompt": prompt_text, "max_tokens": 1000})
         # Join the output list to form a single string
         return "".join(output).strip()
@@ -115,6 +112,9 @@ def trouver_sections_et_generer_reponse(question, resume_sections, ID):
 
 
 def rag_process_api(chemin_questions_csv, chemin_resultats_csv):
+    # Configure the Replicate API key
+    os.environ["REPLICATE_API_TOKEN"] = "r8_KVdlDIHTh9T6xEuEJhDkNxvfCXleqe814zH72"
+    replicate.api_token = os.getenv("REPLICATE_API_TOKEN")
     questions_df = charger_questions(chemin_questions_csv)
 
     # Generate answers and save them to CSV
