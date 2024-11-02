@@ -18,6 +18,8 @@ from Reponse_API import rag_process_api
 from Resume_API import process_resume_api
 from resume_sources import process_resume
 from txt_manipulation import pretraiter_article
+from Parsing_exactitude_ton_biais import parsing_all_metrics
+from Structure_JSON import structurer_json
 
 # from topic_classifier import glossaire_topics
 
@@ -235,6 +237,27 @@ def evaluate_generated_responses(LocalLLM):
         else:
             process_evaluation_api(chemin_question_csv, rag_csv, resultats_csv)
 
+def parse_evaluation_results():
+    """
+    Parsing des résultats d'évaluation.
+    """
+    input_directory = 'Data/resultats/resultats_intermediaires/evaluation/'
+    output_directory = 'Data/resultats/resultats_finaux/resultats_csv/'
+    os.makedirs(output_directory, exist_ok=True)
+
+    parsing_all_metrics(input_directory, output_directory)
+
+def results_to_json():
+    """
+    Neuvième Partie : Conversion des résultats en JSON.
+    """
+    evaluation_dir = 'Data/resultats/resultats_finaux/resultats_csv/'
+    article_dir = 'Data/presse/articles_chunked/'
+    output_dir = 'Data/resultats/resultats_finaux/resultats_json/'
+    os.makedirs(output_dir, exist_ok=True)
+
+    structurer_json(evaluation_dir, article_dir, output_dir)
+
 
 def run_full_processing_pipeline(LocalLLM):
     """
@@ -247,6 +270,8 @@ def run_full_processing_pipeline(LocalLLM):
     summarize_source_sections(LocalLLM)
     generate_rag_responses(LocalLLM)
     evaluate_generated_responses(LocalLLM)
+    parse_evaluation_results()
+    results_to_json()
 
 
 if __name__ == "__main__":
