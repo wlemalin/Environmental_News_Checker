@@ -1,0 +1,12 @@
+pandas
+tqdm
+replicate
+langchain
+nltk
+numpy
+langchain-ollama
+llama-index
+sentence-transformers
+python-dateutil
+pdfminer.six
+ftfy
