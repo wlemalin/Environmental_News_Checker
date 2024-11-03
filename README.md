@@ -55,3 +55,35 @@ python main.py
 ```
 
 This command initiates the entire processing pipeline, from parsing and question generation to response validation and summarization.
+
+
+## Installion Llama3.2 en local 
+
+### Prérequis
+
+Assurez-vous que vous avez un Mac M2 (ou une machine compatible) car Ollama est optimisé pour les environnements Apple Silicon (M1/M2).
+
+### Étapes d’installation
+
+	1.	Installer Ollama
+Vous pouvez effectuer cette étape simplement en allant sur le lien : https://ollama.com/
+
+	2.	Télécharger le modèle Llama 3.2
+Une fois Ollama installé, vous pouvez télécharger le modèle Llama 3.2 (par exemple, la version 1B ou 3B en fonction de vos besoins). Utilisez la commande suivante :
+
+```{python}
+ollama pull llama3.2:3b-instruct-fp16
+```
+
+
+Remplacez 3b par 1b si vous souhaitez télécharger la version 1B du modèle.
+Ollama va gérer le téléchargement du modèle en local et le préparer pour une utilisation directe.
+
+	3.	Vérifier l’installation
+Après le téléchargement, vous pouvez vérifier si le modèle est bien installé et prêt à être utilisé en exécutant la commande suivante :
+
+```{python}
+ollama list
+```
+
+Il faudra toujours vérifier que l'application Ollama est ouverte avant de faire tourner le code.
