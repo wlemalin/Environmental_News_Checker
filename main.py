@@ -7,6 +7,7 @@ Script principal pour le traitement d'un article de presse et d'un rapport du GI
 import os
 
 from Evaluation_API import process_evaluation_api
+from Creation_code_HTML import generate_html_from_json
 from filtrer_extraits import identifier_extraits_sur_giec
 from filtrer_extraits_api import identifier_extraits_sur_giec_api
 from metrics import process_evaluation
@@ -259,6 +260,13 @@ def results_to_json():
     structurer_json(evaluation_dir, article_dir, output_dir)
 
 
+
+def html_visualisation_creation():
+    json_dir = "/Users/mateodib/Desktop/Environmental_News_Checker-2/Data/resultats/resultats_intermediaires/articles_json/"
+    output_html = "/Users/mateodib/Desktop/Environmental_News_Checker-2/Visualisation_results.html"
+    articles_data_dir = "/Users/mateodib/Desktop/Environmental_News_Checker-Mateo/articles_data/"
+    generate_html_from_json(json_dir, output_html, articles_data_dir)
+
 def run_full_processing_pipeline(LocalLLM):
     """
     Exécute toutes les parties du script, dans l'ordre.
@@ -272,6 +280,7 @@ def run_full_processing_pipeline(LocalLLM):
     evaluate_generated_responses(LocalLLM)
     parse_evaluation_results()
     results_to_json()
+    html_visualisation_creation()
 
 
 if __name__ == "__main__":
