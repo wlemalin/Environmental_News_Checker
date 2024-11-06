@@ -37,7 +37,7 @@ def generate_response_with_replicate(current_phrase, context):
 
     # Call Replicate API
     try:
-        output = replicate.run("meta/meta-llama-3.1-405b-instruct",
+        output = replicate.run("meta/meta-llama-3-70b-instruct",
                                input={"prompt": prompt_text, "max_tokens": 500})
         return "".join(output).strip()
     except Exception as e:
