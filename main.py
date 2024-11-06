@@ -21,7 +21,7 @@ from resume_sources import process_resume
 from txt_manipulation import pretraiter_article
 from Parsing_exactitude_ton_biais import parsing_all_metrics
 from Structure_JSON import structurer_json
-
+from selection_rapport import find_report_by_title
 # from topic_classifier import glossaire_topics
 
 
@@ -165,9 +165,15 @@ def summarize_source_sections(LocalLLM):
     for fichier in fichiers_questions:
         chemin_csv_question = os.path.join(chemin_csv_questions, fichier)
         chemin_resultats_csv = os.path.join(chemin_resultats_sources, fichier.replace('_with_questions.csv', '_resume_sections_results.csv'))
-        noms_rapports =  [f for f in os.listdir(dossier_rapport_embeddings) if f.endswith('_indexed.json')]
-        nom_rapport = noms_rapports[0]
-        chemin_rapport_embeddings = os.path.join(dossier_rapport_embeddings, nom_rapport)
+        article_title = fichier.replace('_with_questions.csv', '')
+        nom_rapport = find_report_by_title(article_title)
+        
+        # Remove the colon
+        nom_rapport = nom_rapport.replace(":", "")
+        print(f"Voici le rapport le plus proche retrouvé : {nom_rapport}")
+        
+        # Ensure the path ends with .json
+        chemin_rapport_embeddings = os.path.join(dossier_rapport_embeddings, f"{nom_rapport}.json")
 
 
         if LocalLLM:
