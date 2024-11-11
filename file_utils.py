@@ -19,27 +19,6 @@ from txt_manipulation import parse_llm_response
 
 
 
-# Fonction pour charger les embeddings du rapport
-def charger_embeddings_rapport(chemin_rapport_embeddings: str) -> tuple[list, list]:
-    """
-    Charge les embeddings du rapport ainsi que les sections correspondantes depuis un fichier JSON.
-
-    Args:
-        chemin_rapport_embeddings (str): Chemin vers le fichier JSON contenant les embeddings et les sections.
-
-    Returns:
-        tuple: Liste des embeddings et des sections de texte du rapport.
-    """
-    with open(chemin_rapport_embeddings, 'r', encoding='utf-8') as file:
-        data = json.load(file)
-
-    sections = [section['text'] for section in data]
-    embeddings = [section['embedding'] for section in data]
-    titles = [section.get('title', 'Section sans titre')
-              for section in data]  # Get section titles or default
-
-    return embeddings, sections, titles
-
 # Fonction pour sauvegarder les mentions ou correspondances dans un fichier CSV
 
 
@@ -63,30 +42,6 @@ def save_to_csv(mentions: list[dict], chemin_csv: str, fieldnames: list[str]) ->
 
 
 
-
-# Function to parse all responses and create a DataFrame
-def create_final_dataframe(df: pd.DataFrame) -> pd.DataFrame:
-    """
-    Parse toutes les réponses d'un DataFrame et crée un DataFrame final.
-
-    Args:
-        df (pd.DataFrame): Le DataFrame contenant les paragraphes et réponses analysées.
-
-    Returns:
-        pd.DataFrame: Un nouveau DataFrame contenant les paragraphes, les réponses binaires et les sujets associés.
-    """
-    parsed_data = []
-    for _, row in df.iterrows():
-        paragraph = row['paragraph']
-        response = row['climate_related']
-        binary_response, subjects_list = parse_llm_response(response)
-        parsed_data.append({
-            "paragraph": paragraph,
-            "binary_response": binary_response,
-            "subjects": subjects_list
-        })
-
-    return pd.DataFrame(parsed_data)
 
 
 
