@@ -128,8 +128,8 @@ def process_evaluation(chemin_questions_csv, rag_csv, resultats_csv):
     rag_df = pd.read_csv(rag_csv)
     questions_df = pd.read_csv(chemin_questions_csv, usecols=['id', 'current_phrase'])
     rag_df = rag_df.merge(questions_df, on='id', how='left')
-
-    print(rag_df.head(5))
+    rag_df = rag_df.head(1)
+    print(rag_df.head())
     
     # Initialize separate LLMs for each metric
     llm_exactitude = OllamaLLM(model="llama3.2:3b-instruct-fp16")
