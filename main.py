@@ -7,6 +7,7 @@ Script principal pour le traitement d'un article de presse et d'un rapport du GI
 import os
 
 from Evaluation_API import process_evaluation_api
+from Creation_code_HTML import generate_html_from_json
 from filtrer_extraits import identifier_extraits_sur_giec
 from filtrer_extraits_api import identifier_extraits_sur_giec_api
 from metrics import process_evaluation
@@ -18,8 +19,9 @@ from Reponse_API import rag_process_api
 from Resume_API import process_resume_api
 from resume_sources import process_resume
 from txt_manipulation import pretraiter_article
+from Parsing_exactitude_ton_biais import parsing_all_metrics
+from Structure_JSON import structurer_json
 from selection_rapport import find_report_by_title
-
 # from topic_classifier import glossaire_topics
 
 
@@ -29,6 +31,8 @@ def clean_press_articles():
     """
     chemin_articles = 'Data/presse/articles/'
     chemin_dossier_nettoye = 'Data/presse/articles_cleaned/'
+    if not os.path.exists(os.path.dirname(chemin_dossier_nettoye)):
+        os.makedirs(os.path.dirname(chemin_dossier_nettoye))
 
     # Lister tous les fichiers .txt dans le dossier des articles
     fichiers_articles = [f for f in os.listdir( chemin_articles) if f.endswith('.txt')]
@@ -107,8 +111,6 @@ def generate_questions():
     """
     chemin_articles_chunked = 'Data/presse/articles_chunked/'
     chemin_output_questions = 'Data/resultats/resultats_intermediaires/questions/'
-    
-    # Vérifier si le dossier de destination existe, sinon le créer
     if not os.path.exists(os.path.dirname(chemin_output_questions)):
         os.makedirs(os.path.dirname(chemin_output_questions))
     
@@ -122,12 +124,23 @@ def generate_questions():
         file_path = os.path.join(chemin_articles_chunked, fichier)
         output_path_questions = os.path.join(chemin_output_questions, fichier.replace('_final_analysis_results_improved.csv', '_with_questions.csv'))
 
+        
+
+    if not os.path.exists(os.path.dirname(chemin_output_questions)):
+        os.makedirs(os.path.dirname(chemin_output_questions))
+    
+    # Lister tous les fichiers .csv dans le dossier des articles analysés
+    fichiers_analysis_results = [f for f in os.listdir(chemin_articles_chunked) if f.endswith('_final_analysis_results_improved.csv')]
+    
+    # Itérer sur chaque fichier d'analyse
+    for fichier in fichiers_analysis_results:
+        file_path = os.path.join(chemin_articles_chunked, fichier)
+        output_path_questions = os.path.join(chemin_output_questions, fichier.replace('_final_analysis_results_improved.csv', '_with_questions.csv'))
+
         if LocalLLM:
             question_generation_process(file_path, output_path_questions)
         else:
             question_generation_process_api(file_path, output_path_questions)
-
-
 
 def summarize_source_sections(LocalLLM):
     """
@@ -138,6 +151,10 @@ def summarize_source_sections(LocalLLM):
     dossier_rapport_embeddings = 'Data/IPCC/rapports_indexed/'
     
     # Vérifier si le dossier de destination existe, sinon le créer
+    if not os.path.exists(os.path.dirname(chemin_resultats_sources)):
+        os.makedirs(os.path.dirname(chemin_resultats_sources))
+
+
     if not os.path.exists(os.path.dirname(chemin_resultats_sources)):
         os.makedirs(os.path.dirname(chemin_resultats_sources))
 
@@ -186,6 +203,17 @@ def generate_rag_responses(LocalLLM):
         chemin_resultats_csv = os.path.join(chemin_output_reponses, fichier.replace('_resume_sections_results.csv', '_rag_results.csv'))
 
 
+    if not os.path.exists(os.path.dirname(chemin_output_reponses)):
+        os.makedirs(os.path.dirname(chemin_output_reponses))
+        
+    # Lister tous les fichiers .csv dans le dossier des résumés de sources
+    fichiers_sources_resumees = [f for f in os.listdir(chemin_sources_resumees) if f.endswith('_resume_sections_results.csv')]
+    
+    # Itérer sur chaque fichier de résumés de sources
+    for fichier in fichiers_sources_resumees:
+        chemin_questions_csv = os.path.join(chemin_sources_resumees, fichier)
+        chemin_resultats_csv = os.path.join(chemin_output_reponses, fichier.replace('_resume_sections_results.csv', '_rag_results.csv'))
+
         if LocalLLM:
             process_reponses(chemin_questions_csv, chemin_resultats_csv)
         else:
@@ -199,8 +227,6 @@ def evaluate_generated_responses(LocalLLM):
     chemin_reponses = 'Data/resultats/resultats_intermediaires/reponses/'
     chemin_output_evaluation = 'Data/resultats/resultats_intermediaires/evaluation/'
     chemin_questions_csv = 'Data/resultats/resultats_intermediaires/questions/'
-    
-    # Vérifier si le dossier de destination existe, sinon le créer
     if not os.path.exists(os.path.dirname(chemin_output_evaluation)):
         os.makedirs(os.path.dirname(chemin_output_evaluation))
 
@@ -213,12 +239,39 @@ def evaluate_generated_responses(LocalLLM):
         resultats_csv = os.path.join(chemin_output_evaluation, fichier.replace('_rag_results.csv', '_evaluation_results.csv'))
         chemin_question_csv = os.path.join(chemin_questions_csv, fichier.replace('_rag_results.csv', '_with_questions.csv'))
 
-
         if LocalLLM:
             process_evaluation(chemin_question_csv, rag_csv, resultats_csv)
         else:
             process_evaluation_api(chemin_question_csv, rag_csv, resultats_csv)
 
+def parse_evaluation_results():
+    """
+    Parsing des résultats d'évaluation.
+    """
+    input_directory = 'Data/resultats/resultats_intermediaires/evaluation/'
+    output_directory = 'Data/resultats/resultats_finaux/resultats_csv/'
+    os.makedirs(output_directory, exist_ok=True)
+
+    parsing_all_metrics(input_directory, output_directory)
+
+def results_to_json():
+    """
+    Neuvième Partie : Conversion des résultats en JSON.
+    """
+    evaluation_dir = 'Data/resultats/resultats_finaux/resultats_csv/'
+    article_dir = 'Data/presse/articles_chunked/'
+    output_dir = 'Data/resultats/resultats_finaux/resultats_json/'
+    os.makedirs(output_dir, exist_ok=True)
+
+    structurer_json(evaluation_dir, article_dir, output_dir)
+
+
+
+def html_visualisation_creation():
+    json_dir = "/Users/mateodib/Desktop/Environmental_News_Checker-2/Data/resultats/resultats_intermediaires/articles_json/"
+    output_html = "/Users/mateodib/Desktop/Environmental_News_Checker-2/Visualisation_results.html"
+    articles_data_dir = "/Users/mateodib/Desktop/Environmental_News_Checker-Mateo/articles_data/"
+    generate_html_from_json(json_dir, output_html, articles_data_dir)
 
 def run_full_processing_pipeline(LocalLLM):
     """
@@ -231,6 +284,9 @@ def run_full_processing_pipeline(LocalLLM):
     summarize_source_sections(LocalLLM)
     generate_rag_responses(LocalLLM)
     evaluate_generated_responses(LocalLLM)
+    parse_evaluation_results()
+    results_to_json()
+    html_visualisation_creation()
 
 
 if __name__ == "__main__":

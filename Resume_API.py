@@ -16,8 +16,6 @@ def sauvegarder_resultats_resume(resultats, chemin_resultats_csv):
 # Load data and model for questions and report sections
 def charger_donnees_et_modele(chemin_csv_questions, chemin_rapport_embeddings, top_k=5):
     df_questions = pd.read_csv(chemin_csv_questions)
-    df_questions = df_questions.head(1)
-    
     print(f"Questions loaded. Total: {len(df_questions)}")
     
     embed_model = SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2', device='cpu')
