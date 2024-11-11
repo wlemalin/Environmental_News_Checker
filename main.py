@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Script principal pour le traitement d'un article de presse et d'un rapport du GIEC.
+Script principal pour le traitement d' articles de presse et de rapports du GIEC.
 """
 
 import os
@@ -67,20 +67,9 @@ def process_ipcc_reports():
 
         process_pdf_to_index(chemin_rapport_pdf, chemin_rapport_indexed)
 
-# def identify_ipcc_mentions():
-#     """
-#     Troisième Partie : Identification des mentions directes/indirectes au GIEC.
-#     """
-#     chemin_cleaned_article = '_ _ C_est plus confortable de se dire que ce n_est pas si grave __cleaned_cleaned.txt'
-#     chemin_resultats_csv = '/Users/mateodib/Desktop/Environmental_News_Checker-Mateo/mentions_extraites.csv'
-#     chemin_glossaire = 'translated_glossary_with_definitions.csv'
-#     glossaire_topics(chemin_glossaire, chemin_cleaned_article,
-#                      chemin_resultats_csv)
-
-
 def extract_relevant_ipcc_references():
     """
-    Quatrième Partie : Identification des extraits relatifs au GIEC.
+    Troisième Partie : Identification des extraits relatifs au GIEC.
     """
     chemin_articles_nettoyes = 'Data/presse/articles_cleaned/'
     chemin_output_chunked = 'Data/presse/articles_chunked/'
@@ -107,7 +96,7 @@ def extract_relevant_ipcc_references():
 
 def generate_questions():
     """
-    Cinquième Partie : Génération de questions pour plusieurs fichiers.
+    Quatrième Partie : Génération de questions pour plusieurs fichiers.
     """
     chemin_articles_chunked = 'Data/presse/articles_chunked/'
     chemin_output_questions = 'Data/resultats/resultats_intermediaires/questions/'
@@ -144,7 +133,7 @@ def generate_questions():
 
 def summarize_source_sections(LocalLLM):
     """
-    Résumé des sources pour chaque question pour plusieurs fichiers.
+    Cinquième Partie: Résumé des sources pour chaque question pour plusieurs fichiers.
     """
     chemin_csv_questions = 'Data/resultats/resultats_intermediaires/questions/'
     chemin_resultats_sources = 'Data/resultats/resultats_intermediaires/sources_resumees/'
@@ -246,7 +235,7 @@ def evaluate_generated_responses(LocalLLM):
 
 def parse_evaluation_results():
     """
-    Parsing des résultats d'évaluation.
+    Huitième Partie: Parsing des résultats d'évaluation.
     """
     input_directory = 'Data/resultats/resultats_intermediaires/evaluation/'
     output_directory = 'Data/resultats/resultats_finaux/resultats_csv/'
@@ -268,6 +257,9 @@ def results_to_json():
 
 
 def html_visualisation_creation():
+    """
+    Dixième Partie: Création du html pour la visualisation des résultats.
+    """
     json_dir = "/Users/mateodib/Desktop/Environmental_News_Checker-2/Data/resultats/resultats_intermediaires/articles_json/"
     output_html = "/Users/mateodib/Desktop/Environmental_News_Checker-2/Visualisation_results.html"
     articles_data_dir = "/Users/mateodib/Desktop/Environmental_News_Checker-Mateo/articles_data/"
@@ -297,13 +289,15 @@ if __name__ == "__main__":
     print("Choose an option:")
     print("1. Clean press article")
     print("2. Process IPCC report")
-    print("3. Identify IPCC mentions")
-    print("4. Extract relevant IPCC references")
-    print("5. Generate questions for each chunk")
-    print("6. Summarize source sections")
-    print("7. Generate RAG responses for questions")
-    print("8. Evaluate generated responses")
-    print("9. Run full processing pipeline")
+    print("3. Extract relevant IPCC references")
+    print("4. Generate questions for each chunk")
+    print("5. Summarize source sections")
+    print("6. Generate RAG responses for questions")
+    print("7. Evaluate generated responses")
+    print("8. Parse evaluation results")
+    print("9. Structure results to JSON format")
+    print("10. Create HTML for visualisation")
+    print("11. Run full processing pipeline")
     choice = input("Enter your choice: ")
 
     match choice:
@@ -311,19 +305,23 @@ if __name__ == "__main__":
             clean_press_articles()
         case "2":
             process_ipcc_reports()
-        # case "3":
-            # identify_ipcc_mentions()
-        case "4":
+        case "3":
             extract_relevant_ipcc_references()
-        case "5":
+        case "4":
             generate_questions()
-        case "6":
+        case "5":
             summarize_source_sections(LocalLLM)
-        case "7":
+        case "6":
             generate_rag_responses(LocalLLM)
-        case "8":
+        case "7":
             evaluate_generated_responses(LocalLLM)
+        case "8":
+            parse_evaluation_results()
         case "9":
+            results_to_json()
+        case "10":
+            html_visualisation_creation()
+        case "11":
             run_full_processing_pipeline(LocalLLM)
         case _:
             print("Invalid choice. Please choose a valid option.")
