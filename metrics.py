@@ -92,15 +92,19 @@ prompts = {
 def evaluer_phrase_sur_toutes_metrices(phrase_id, question, current_phrase, sections_resumees):
     evaluations = {}
     for metric, prompt_template in prompts.items():
+        # Construire le prompt avec les phrases et sections de résumé appropriées
         prompt = prompt_template.format(current_phrase=current_phrase, sections_resumees=sections_resumees)
         
         # Génération avec pipeline
-        output = pipe(prompt, max_new_tokens=256)
+        output = pipe(prompt, max_new_tokens=1000)
         
-        # Extraction de la réponse générée dans le champ 'content' en suivant l'exemple fourni
-        generated_text = output[0]["content"].strip() if "content" in output[0] else output[0]["generated_text"].strip()
+        # Extraction de la réponse générée depuis le champ 'generated_text'
+        response_content = output[0]["generated_text"][-1]
+        
+        # Vérification s'il y a un champ 'content' pour récupérer uniquement la réponse du LLM
+        response_only = response_content if "content" not in response_content else response_content["content"]
 
-        evaluations[metric] = generated_text
+        evaluations[metric] = response_only.strip()
     
     return {
         "id": phrase_id,
