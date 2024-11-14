@@ -6,27 +6,9 @@ Script principal pour le traitement d' articles de presse et de rapports du GIEC
 
 import os
 
-from txt_manipulation import pretraiter_article
-from pdf_processing import process_pdf_to_index
-from filtrer_extraits import identifier_extraits_sur_giec
-from filtrer_extraits_api import identifier_extraits_sur_giec_api
-from questions import question_generation_process
-from questions_api import question_generation_process_api
-from selection_rapport import find_report_by_title
-from reponse import process_reponses
-from reponse_api import process_reponses_api
-from resume_api import process_resume_api
-from resume import process_resume
-from metrics import process_evaluation
-from metrics_api import process_evaluation_api
-from Parsing_exactitude_ton_biais import parsing_all_metrics
-from Creation_code_HTML import generate_html_from_json
-from Structure_JSON import structurer_json
-
-
-
 
 def clean_press_articles():
+    from txt_manipulation import pretraiter_article
     """
     Première Partie : Nettoyage de plusieurs articles de presse.
     """
@@ -46,6 +28,7 @@ def clean_press_articles():
 
 
 def process_ipcc_reports():
+    from pdf_processing import process_pdf_to_index
     """
     Seconde Partie : Nettoyage et indexation de plusieurs rapports IPCC.
     """
@@ -69,9 +52,14 @@ def process_ipcc_reports():
         process_pdf_to_index(chemin_rapport_pdf, chemin_rapport_indexed)
 
 def extract_relevant_ipcc_references():
+    
     """
     Troisième Partie : Identification des extraits relatifs au GIEC.
     """
+    
+    from filtrer_extraits import identifier_extraits_sur_giec
+    from filtrer_extraits_api import identifier_extraits_sur_giec_api
+    
     chemin_articles_nettoyes = 'Data/presse/articles_cleaned/'
     chemin_output_chunked = 'Data/presse/articles_chunked/'
     
@@ -99,6 +87,9 @@ def generate_questions():
     """
     Quatrième Partie : Génération de questions pour plusieurs fichiers.
     """
+    from questions import question_generation_process
+    from questions_api import question_generation_process_api
+    
     chemin_articles_chunked = 'Data/presse/articles_chunked/'
     chemin_output_questions = 'Data/resultats/resultats_intermediaires/questions/'
     if not os.path.exists(os.path.dirname(chemin_output_questions)):
@@ -133,9 +124,14 @@ def generate_questions():
             question_generation_process_api(file_path, output_path_questions)
 
 def summarize_source_sections(LocalLLM):
+    
     """
     Cinquième Partie: Résumé des sources pour chaque question pour plusieurs fichiers.
     """
+    from selection_rapport import find_report_by_title
+    from resume_api import process_resume_api
+    from resume import process_resume
+    
     chemin_csv_questions = 'Data/resultats/resultats_intermediaires/questions/'
     chemin_resultats_sources = 'Data/resultats/resultats_intermediaires/sources_resumees/'
     dossier_rapport_embeddings = 'Data/IPCC/rapports_indexed/'
@@ -189,6 +185,9 @@ def generate_rag_responses(LocalLLM):
     """
     Sixième Partie : Génération de réponses (RAG) pour plusieurs fichiers.
     """
+    from reponse import process_reponses
+    from reponse_api import process_reponses_api
+    
     chemin_sources_resumees = 'Data/resultats/resultats_intermediaires/sources_resumees/'
     chemin_output_reponses = 'Data/resultats/resultats_intermediaires/reponses/'
 
@@ -227,6 +226,10 @@ def evaluate_generated_responses(LocalLLM):
     """
     Septième Partie : Évaluation des réponses pour plusieurs fichiers.
     """
+    
+    from metrics import process_evaluation
+    from metrics_api import process_evaluation_api
+    
     chemin_reponses = 'Data/resultats/resultats_intermediaires/reponses/'
     chemin_output_evaluation = 'Data/resultats/resultats_intermediaires/evaluation/'
     chemin_questions_csv = 'Data/resultats/resultats_intermediaires/questions/'
@@ -251,6 +254,10 @@ def parse_evaluation_results():
     """
     Huitième Partie: Parsing des résultats d'évaluation.
     """
+    
+    from Parsing_exactitude_ton_biais import parsing_all_metrics
+    
+    
     input_directory = 'Data/resultats/resultats_intermediaires/evaluation/'
     output_directory = 'Data/resultats/resultats_finaux/resultats_csv/'
     os.makedirs(output_directory, exist_ok=True)
@@ -261,6 +268,9 @@ def results_to_json():
     """
     Neuvième Partie : Conversion des résultats en JSON.
     """
+
+    from Structure_JSON import structurer_json
+    
     evaluation_dir = 'Data/resultats/resultats_finaux/resultats_csv/'
     article_dir = 'Data/presse/articles_chunked/'
     output_dir = 'Data/resultats/resultats_finaux/resultats_json/'
@@ -274,6 +284,10 @@ def html_visualisation_creation():
     """
     Dixième Partie: Création du html pour la visualisation des résultats.
     """
+    
+    from Creation_code_HTML import generate_html_from_json
+    
+    
     json_dir = "/Users/mateodib/Desktop/Environmental_News_Checker-2/Data/resultats/resultats_intermediaires/articles_json/"
     output_html = "/Users/mateodib/Desktop/Environmental_News_Checker-2/Visualisation_results.html"
     articles_data_dir = "/Users/mateodib/Desktop/Environmental_News_Checker-Mateo/articles_data/"
