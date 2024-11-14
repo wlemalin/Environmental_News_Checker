@@ -11,8 +11,66 @@ Fonctionnalités principales :
 """
 import json
 from pdfminer.high_level import extract_text
-from txt_manipulation import clean_text, split_text_into_chunks
+import re
+import nltk
 
+# Fonction pour nettoyer le texte de manière simple
+def clean_text(text: str) -> str:
+    """
+    Nettoie un texte en supprimant les numéros de page, les espaces multiples et les sauts de ligne supplémentaires.
+
+    Args:
+        text (str): Texte à nettoyer.
+
+    Returns:
+        str: Texte nettoyé.
+    """
+    text = re.sub(r'\bPage\s+\d+\b', '', text)  # Supprimer les numéros de page
+    text = re.sub(r'\s+', ' ', text)  # Supprimer les espaces multiples
+    text = re.sub(r'\n+', '\n', text)  # Supprimer les sauts de ligne en excès
+    return text
+
+
+# Function to split text into optimized chunks using NLTK for sentence tokenization
+def split_text_into_chunks(text: str, max_tokens: int = 382) -> list[dict]:
+    """
+    Splits a text into optimized chunks for embedding generation, ensuring each chunk is within the token limit.
+
+    Args:
+        text (str): The input text to split into chunks.
+        max_tokens (int): The maximum number of tokens for each chunk (default is 382 for the model).
+
+    Returns:
+        list: A list of dictionaries containing the index and content of each chunk.
+    """
+    # Split the text into sentences using NLTK
+    sentences = nltk.sent_tokenize(text)
+    chunks = []
+    current_chunk = ""
+    chunk_index = 0
+
+    for sentence in sentences:
+        # Check if adding the next sentence exceeds the max token limit
+        if len(current_chunk) + len(sentence) <= max_tokens:
+            current_chunk += sentence + " "
+        else:
+            # Add the current chunk to the list
+            chunks.append({
+                "title": f"Chunk {chunk_index}",
+                "text": current_chunk.strip()
+            })
+            chunk_index += 1
+            # Start a new chunk with the current sentence
+            current_chunk = sentence + " "
+
+    # Add the last chunk if it has any remaining text
+    if current_chunk:
+        chunks.append({
+            "title": f"Chunk {chunk_index}",
+            "text": current_chunk.strip()
+        })
+
+    return chunks
 
 # Pipeline principal de traitement
 def process_pdf_to_index(chemin_rapport_pdf: str, chemin_output_json: str) -> None:

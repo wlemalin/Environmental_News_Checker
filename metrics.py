@@ -1,105 +1,131 @@
+import torch
+from transformers import pipeline, AutoTokenizer
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import pandas as pd
-from langchain import PromptTemplate
-from langchain_ollama import OllamaLLM
 from tqdm import tqdm
 
+# Initialiser le modèle et le tokenizer avec pipeline pour text-generation
+model_id = "meta-llama/Llama-3.2-3B-Instruct"
+tokenizer = AutoTokenizer.from_pretrained(model_id)
+pipe = pipeline(
+    "text-generation",
+    model=model_id,
+    torch_dtype=torch.bfloat16,
+    device_map="auto",
+    pad_token_id=tokenizer.eos_token_id  # Définit pad_token_id pour éviter le warning
+)
 
-# Function to evaluate a phrase for accuracy, bias, and tone using distinct LLMs and prompts
-def evaluer_trois_taches_sur_phrase(phrase_id, question, current_phrase, sections_resumees,
-                                    llm_sequence_exactitude, llm_sequence_biais, llm_sequence_ton):
+# Définir les prompts pour chaque métrique
+prompts = {
+    "accuracy": """
+        Vous êtes chargé de comparer un extrait d'un article de presse aux informations officielles du rapport du GIEC.
+        Évaluez l'exactitude de cet extrait en fonction des sections du rapport fournies. Utilisez l'échelle suivante :
+
+        - **Score 0** : Totalement inexact, contredit directement les informations du rapport.
+        - **Score 1** : Très inexact, contient plusieurs erreurs ou omissions importantes par rapport au rapport.
+        - **Score 2** : Partiellement inexact, quelques erreurs importantes, mais certaines informations sont correctes.
+        - **Score 3** : Modérément exact, contient des informations correctes mais avec quelques imprécisions.
+        - **Score 4** : Largement exact, avec seulement de légères imprécisions.
+        - **Score 5** : Parfaitement exact, correspond pleinement aux informations du rapport.
+
+        **Extrait de l'article** :
+        "{current_phrase}"
+
+        **Sections du rapport du GIEC** :
+        "{sections_resumees}"
+
+        Répondez en JSON:
+        {{
+            "score": <score_entre_0_et_5>,
+            "justifications": "<votre_justification>"
+        }}
+    """,
+    
+    "bias": """
+        Vous êtes chargé d'analyser un extrait d'un article de presse pour détecter tout biais potentiel en fonction des sections du rapport du GIEC. Utilisez l'échelle suivante :
+
+        - **Score 0** : Fortement biaisé, présente une vision totalement exagérée ou minimisée.
+        - **Score 1** : Biaisé, avec une inclinaison évidente, soit en exagérant soit en minimisant les faits.
+        - **Score 2** : Modérément biaisé, certains aspects exagérés ou minimisés mais dans l'ensemble équilibré.
+        - **Score 3** : Légèrement biaisé, de petites nuances de biais mais globalement équilibré.
+        - **Score 4** : Largement neutre, avec très peu de biais.
+        - **Score 5** : Totalement neutre, sans aucun biais détectable.
+
+        **Extrait de l'article** :
+        "{current_phrase}"
+
+        **Sections du rapport du GIEC** :
+        "{sections_resumees}"
+
+        Répondez en JSON:
+        {{
+            "score": <score_entre_0_et_5>,
+            "justifications": "<votre_justification>"
+        }}
+    """,
+    
+    "tone": """
+        Vous êtes chargé d'analyser le ton d'un extrait d'un article de presse en le comparant aux informations du rapport du GIEC. Utilisez l'échelle suivante :
+
+        - **Score 0** : Ton fortement alarmiste ou minimisant, très éloigné du ton neutre.
+        - **Score 1** : Ton exagérément alarmiste ou minimisant.
+        - **Score 2** : Ton quelque peu alarmiste ou minimisant.
+        - **Score 3** : Ton modérément factuel avec une légère tendance à l'alarmisme ou à la minimisation.
+        - **Score 4** : Ton largement factuel, presque totalement neutre.
+        - **Score 5** : Ton complètement neutre et factuel, sans tendance perceptible.
+
+        **Extrait de l'article** :
+        "{current_phrase}"
+
+        **Sections du rapport du GIEC** :
+        "{sections_resumees}"
+
+        Répondez en JSON:
+        {{
+            "score": <score_entre_0_et_5>,
+            "justifications": "<votre_justification>"
+        }}
     """
-    Evaluates a given phrase on three different metrics: accuracy, bias, and tone.
+}
 
-    Parameters:
-    - phrase_id (int): The identifier for the phrase being evaluated.
-    - question (str): The question related to the current phrase.
-    - current_phrase (str): The phrase to be evaluated.
-    - sections_resumees (str): Summarized sections used as context for evaluation.
-    - llm_sequence_exactitude (RunnableSequence): Chain of prompt template and LLM for accuracy evaluation.
-    - llm_sequence_biais (RunnableSequence): Chain of prompt template and LLM for bias evaluation.
-    - llm_sequence_ton (RunnableSequence): Chain of prompt template and LLM for tone evaluation.
+# Fonction pour évaluer une phrase sur toutes les métriques
+def evaluer_phrase_sur_toutes_metrices(phrase_id, question, current_phrase, sections_resumees):
+    evaluations = {}
+    for metric, prompt_template in prompts.items():
+        prompt = prompt_template.format(current_phrase=current_phrase, sections_resumees=sections_resumees)
+        
+        # Génération avec pipeline
+        output = pipe(prompt, max_new_tokens=256)
+        
+        # Extraction de la réponse générée dans le champ 'content' en suivant l'exemple fourni
+        generated_text = output[0]["content"].strip() if "content" in output[0] else output[0]["generated_text"].strip()
 
-    Returns:
-    - dict: A dictionary containing the evaluation results for accuracy, bias, and tone for the given phrase.
-    """
-    # Ajoutez un dictionnaire avec `task_id` pour chaque tâche
-    input_exactitude = {
-        "task_id": "exactitude",
-        "current_phrase": current_phrase,
-        "sections_resumees": sections_resumees
-    }
-    input_biais = {
-        "task_id": "biais",
-        "current_phrase": current_phrase,
-        "sections_resumees": sections_resumees
-    }
-    input_ton = {
-        "task_id": "ton",
-        "current_phrase": current_phrase,
-        "sections_resumees": sections_resumees
-    }
+        evaluations[metric] = generated_text
     
-    # Vérifiez que `task_id` correspond à la tâche attendue pour chaque séquence
-
-    # Évaluation de l'exactitude
-    assert input_exactitude["task_id"] == "exactitude", "Erreur : mauvais task_id pour exactitude."
-    response_exactitude = llm_sequence_exactitude.invoke(input_exactitude)
-    exactitude = response_exactitude['text'].strip() if isinstance(response_exactitude, dict) else response_exactitude.strip()
-    
-    # Évaluation du biais
-    assert input_biais["task_id"] == "biais", "Erreur : mauvais task_id pour biais."
-    response_biais = llm_sequence_biais.invoke(input_biais)
-    biais = response_biais['text'].strip() if isinstance(response_biais, dict) else response_biais.strip()
-    
-    # Évaluation du ton
-    assert input_ton["task_id"] == "ton", "Erreur : mauvais task_id pour ton."
-    response_ton = llm_sequence_ton.invoke(input_ton)
-    ton = response_ton['text'].strip() if isinstance(response_ton, dict) else response_ton.strip()
-    
-    # Retourne les résultats pour cette phrase
     return {
         "id": phrase_id,
         "question": question,
         "current_phrase": current_phrase,
         "sections_resumees": sections_resumees,
-        "exactitude": exactitude,
-        "biais": biais,
-        "ton": ton
+        **evaluations
     }
-# Function to parallelize evaluation of phrases for each metric with distinct LLMs
-def evaluer_phrase_parallele(rag_df, llm_sequence_exactitude, llm_sequence_biais, llm_sequence_ton):
-    """
-    Evaluates multiple phrases in parallel for accuracy, bias, and tone using distinct LLM models.
 
-    Parameters:
-    - rag_df (DataFrame): A pandas DataFrame containing phrases and contextual information for evaluation.
-    - llm_sequence_exactitude (RunnableSequence): Chain of prompt template and LLM for accuracy evaluation.
-    - llm_sequence_biais (RunnableSequence): Chain of prompt template and LLM for bias evaluation.
-    - llm_sequence_ton (RunnableSequence): Chain of prompt template and LLM for tone evaluation.
-
-    Returns:
-    - DataFrame: A pandas DataFrame containing the evaluation results for each phrase.
-    """
+# Fonction pour paralléliser l'évaluation des phrases sur toutes les métriques
+def evaluer_phrase_parallele(rag_df):
     results = []
-    with ThreadPoolExecutor(max_workers=3) as executor:  # Adjusted max_workers to 3 for M2
+    with ThreadPoolExecutor(max_workers=1) as executor:
         futures = []
-        
         for _, row in rag_df.iterrows():
             phrase_id = row['id']
             question = row['question']
             current_phrase = row['current_phrase']
             sections_resumees = row['sections_resumees']
-            
-            # Submit evaluation for exactitude, biais, and ton with distinct LLMs
             futures.append(executor.submit(
-                evaluer_trois_taches_sur_phrase,
-                phrase_id, question, current_phrase, sections_resumees,
-                llm_sequence_exactitude, llm_sequence_biais, llm_sequence_ton
+                evaluer_phrase_sur_toutes_metrices,
+                phrase_id, question, current_phrase, sections_resumees
             ))
         
-        # Gather results as tasks complete
-        for future in tqdm(as_completed(futures), total=len(futures), desc="Evaluating phrases"):
+        for future in tqdm(as_completed(futures), total=len(futures), desc="Evaluating phrases for all metrics"):
             try:
                 result = future.result()
                 results.append(result)
@@ -108,47 +134,16 @@ def evaluer_phrase_parallele(rag_df, llm_sequence_exactitude, llm_sequence_biais
     
     return pd.DataFrame(results)
 
-# Main function to run the evaluation process with distinct LLMs for each metric
+# Fonction principale pour orchestrer le processus d'évaluation
 def process_evaluation(chemin_questions_csv, rag_csv, resultats_csv):
-    """
-    Main function that orchestrates the evaluation process of phrases.
-
-    Parameters:
-    - chemin_questions_csv (str): Path to the CSV file containing questions and phrases to be evaluated.
-    - rag_csv (str): Path to the CSV file containing RAG information including summarized sections.
-    - resultats_csv (str): Path where the evaluation results CSV file should be saved.
-
-    Workflow:
-    1. Reads input CSVs and merges relevant data.
-    2. Initializes LLMs and creates evaluation chains for accuracy, bias, and tone.
-    3. Evaluates each phrase for accuracy, bias, and tone using parallel processing.
-    4. Saves the evaluation results to a CSV file.
-    """
-    # Load data
+    # Chargement des données
     rag_df = pd.read_csv(rag_csv)
     questions_df = pd.read_csv(chemin_questions_csv, usecols=['id', 'current_phrase'])
     rag_df = rag_df.merge(questions_df, on='id', how='left')
 
-    print(rag_df.head(5))
+    # Évaluer chaque phrase pour toutes les métriques
+    resultats = evaluer_phrase_parallele(rag_df)
     
-    # Initialize separate LLMs for each metric
-    llm_exactitude = OllamaLLM(model="llama3.2:3b-instruct-fp16")
-    llm_biais = OllamaLLM(model="llama3.2:3b-instruct-fp16")
-    llm_ton = OllamaLLM(model="llama3.2:3b-instruct-fp16")
-    
-    # Define distinct prompts for each metric
-    prompt_exactitude = PromptTemplate(template="Evaluate accuracy: {current_phrase} in context: {sections_resumees}", input_variables=["current_phrase", "sections_resumees"])
-    llm_sequence_exactitude = prompt_exactitude | llm_exactitude
-    
-    prompt_biais = PromptTemplate(template="Evaluate bias: {current_phrase} in context: {sections_resumees}", input_variables=["current_phrase", "sections_resumees"])
-    llm_sequence_biais = prompt_biais | llm_biais
-    
-    prompt_ton = PromptTemplate(template="Evaluate tone: {current_phrase} in context: {sections_resumees}", input_variables=["current_phrase", "sections_resumees"])
-    llm_sequence_ton = prompt_ton | llm_ton
-    
-    # Evaluate each phrase for accuracy, bias, and tone
-    resultats = evaluer_phrase_parallele(rag_df, llm_sequence_exactitude, llm_sequence_biais, llm_sequence_ton)
-    
-    # Save results
+    # Sauvegarder les résultats
     resultats.to_csv(resultats_csv, index=False, quotechar='"')
     print(f"Evaluation results saved in {resultats_csv}")

@@ -10,7 +10,7 @@ def find_report_by_title(article_title):
         article_title (str): The title of the article to search for.
     
     Returns:
-        str: The name of the GIEC report associated with the article title, or 'Not Found' if no close match is found.
+        str: The name of the GIEC report associated with the article title, or a default report name if no close match is found.
     """
     # Load the metadata with GIEC information
     metadata_with_giec = pd.read_csv("/Users/mateodib/Desktop/Environmental_News_Checker-2/Data/Index/metadata_with_GIEC.csv")
@@ -37,8 +37,11 @@ def find_report_by_title(article_title):
             best_match = row["rapport_GIEC"]
             best_score = similarity_score
 
-    # Return the best match if found, otherwise return 'Not Found'
+    # Return the best match if found, otherwise return the default report
     if best_match:
         return best_match
     else:
-        return "Not Found"
+        # Return the default report if no match is found
+        return "AR6 Climate Change 2022 Mitigation of Climate Change"
+
+

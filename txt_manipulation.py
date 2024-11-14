@@ -15,6 +15,30 @@ import re
 import nltk
 
 
+# Fonction pour prétraiter l'article et sauvegarder le texte nettoyé
+def pretraiter_article(chemin_article: str, chemin_cleaned_article, chemin_dossier_nettoye: str) -> str:
+    """
+    Prétraite un article en appliquant le pré-nettoyage et en sauvegardant le texte nettoyé dans un fichier.
+
+    Args:
+        chemin_article (str): Chemin du fichier texte de l'article à prétraiter.
+        chemin_dossier_nettoye (str): Dossier où sauvegarder l'article nettoyé.
+
+    Returns:
+        str: Chemin du fichier de l'article nettoyé.
+    """
+    with open(chemin_article, 'r', encoding='utf-8') as file:
+        texte_article = file.read()
+    texte_pre_nettoye = pre_nettoyage_regex(texte_article)
+
+    if not os.path.exists(chemin_dossier_nettoye):
+        os.makedirs(chemin_dossier_nettoye)
+
+    with open(chemin_cleaned_article, 'w', encoding='utf-8') as file:
+        file.write(texte_pre_nettoye)
+    return chemin_cleaned_article
+
+
 # Fonction pour appliquer un pré-nettoyage manuel avec regex
 def pre_nettoyage_regex(texte: str) -> str:
     """
@@ -48,87 +72,7 @@ def pre_nettoyage_regex(texte: str) -> str:
     return texte
 
 
-# Fonction pour prétraiter l'article et sauvegarder le texte nettoyé
-def pretraiter_article(chemin_article: str, chemin_cleaned_article, chemin_dossier_nettoye: str) -> str:
-    """
-    Prétraite un article en appliquant le pré-nettoyage et en sauvegardant le texte nettoyé dans un fichier.
 
-    Args:
-        chemin_article (str): Chemin du fichier texte de l'article à prétraiter.
-        chemin_dossier_nettoye (str): Dossier où sauvegarder l'article nettoyé.
-
-    Returns:
-        str: Chemin du fichier de l'article nettoyé.
-    """
-    with open(chemin_article, 'r', encoding='utf-8') as file:
-        texte_article = file.read()
-    texte_pre_nettoye = pre_nettoyage_regex(texte_article)
-
-    if not os.path.exists(chemin_dossier_nettoye):
-        os.makedirs(chemin_dossier_nettoye)
-
-    with open(chemin_cleaned_article, 'w', encoding='utf-8') as file:
-        file.write(texte_pre_nettoye)
-    return chemin_cleaned_article
-
-
-# Fonction pour nettoyer le texte de manière simple
-def clean_text(text: str) -> str:
-    """
-    Nettoie un texte en supprimant les numéros de page, les espaces multiples et les sauts de ligne supplémentaires.
-
-    Args:
-        text (str): Texte à nettoyer.
-
-    Returns:
-        str: Texte nettoyé.
-    """
-    text = re.sub(r'\bPage\s+\d+\b', '', text)  # Supprimer les numéros de page
-    text = re.sub(r'\s+', ' ', text)  # Supprimer les espaces multiples
-    text = re.sub(r'\n+', '\n', text)  # Supprimer les sauts de ligne en excès
-    return text
-
-
-# Function to split text into optimized chunks using NLTK for sentence tokenization
-def split_text_into_chunks(text: str, max_tokens: int = 382) -> list[dict]:
-    """
-    Splits a text into optimized chunks for embedding generation, ensuring each chunk is within the token limit.
-
-    Args:
-        text (str): The input text to split into chunks.
-        max_tokens (int): The maximum number of tokens for each chunk (default is 382 for the model).
-
-    Returns:
-        list: A list of dictionaries containing the index and content of each chunk.
-    """
-    # Split the text into sentences using NLTK
-    sentences = nltk.sent_tokenize(text)
-    chunks = []
-    current_chunk = ""
-    chunk_index = 0
-
-    for sentence in sentences:
-        # Check if adding the next sentence exceeds the max token limit
-        if len(current_chunk) + len(sentence) <= max_tokens:
-            current_chunk += sentence + " "
-        else:
-            # Add the current chunk to the list
-            chunks.append({
-                "title": f"Chunk {chunk_index}",
-                "text": current_chunk.strip()
-            })
-            chunk_index += 1
-            # Start a new chunk with the current sentence
-            current_chunk = sentence + " "
-
-    # Add the last chunk if it has any remaining text
-    if current_chunk:
-        chunks.append({
-            "title": f"Chunk {chunk_index}",
-            "text": current_chunk.strip()
-        })
-
-    return chunks
 
 
 # Fonction pour découper le texte en phrases

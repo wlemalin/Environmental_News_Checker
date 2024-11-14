@@ -75,6 +75,8 @@ def answer_question(question, resume_sections, sections_brutes, llm_chain, ID):
     generated_answer = generated_answer.strip()
     return question, resume_sections, generated_answer, ID, sections_brutes
 
+
+
 # Main function to execute the RAG process
 def process_reponses(chemin_questions_csv, chemin_resultats_csv):
     """

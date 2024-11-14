@@ -1,10 +1,11 @@
 import nltk
 import pandas as pd
 from nltk import sent_tokenize
-
-from llms import (analyze_paragraphs_parallel, parsed_responses)
+from llms import analyze_paragraphs_parallel
 from prompt import prompt_selection_phrase_pertinente
-from topic_classifier import generate_context_windows
+from llms import parsed_responses
+from generate_context_windows import generate_context_windows
+
 
 
 def identifier_extraits_sur_giec(file_path, output_path, output_path_improved):

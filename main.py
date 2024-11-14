@@ -6,23 +6,24 @@ Script principal pour le traitement d' articles de presse et de rapports du GIEC
 
 import os
 
-from Evaluation_API import process_evaluation_api
-from Creation_code_HTML import generate_html_from_json
+from txt_manipulation import pretraiter_article
+from pdf_processing import process_pdf_to_index
 from filtrer_extraits import identifier_extraits_sur_giec
 from filtrer_extraits_api import identifier_extraits_sur_giec_api
-from metrics import process_evaluation
-from pdf_processing import process_pdf_to_index
 from questions import question_generation_process
 from questions_api import question_generation_process_api
-from reponse import process_reponses
-from Reponse_API import rag_process_api
-from Resume_API import process_resume_api
-from resume_sources import process_resume
-from txt_manipulation import pretraiter_article
-from Parsing_exactitude_ton_biais import parsing_all_metrics
-from Structure_JSON import structurer_json
 from selection_rapport import find_report_by_title
-# from topic_classifier import glossaire_topics
+from reponse import process_reponses
+from reponse_api import process_reponses_api
+from resume_api import process_resume_api
+from resume import process_resume
+from metrics import process_evaluation
+from metrics_api import process_evaluation_api
+from Parsing_exactitude_ton_biais import parsing_all_metrics
+from Creation_code_HTML import generate_html_from_json
+from Structure_JSON import structurer_json
+
+
 
 
 def clean_press_articles():
@@ -61,7 +62,7 @@ def process_ipcc_reports():
     # Itérer sur chaque fichier de rapport
     for fichier in fichiers_rapports:
         chemin_rapport_pdf = os.path.join(chemin_rapports_pdf, fichier)
-        chemin_rapport_indexed = os.path.join(chemin_output_indexed, fichier.replace('.pdf', '_indexed.json'))
+        chemin_rapport_indexed = os.path.join(chemin_output_indexed, fichier.replace('.pdf', '.json'))
 
         
 
@@ -161,14 +162,27 @@ def summarize_source_sections(LocalLLM):
         nom_rapport = nom_rapport.replace(":", "")
         print(f"Voici le rapport le plus proche retrouvé : {nom_rapport}")
         
-        # Ensure the path ends with .json
+        # Try to construct the path to the report JSON file
         chemin_rapport_embeddings = os.path.join(dossier_rapport_embeddings, f"{nom_rapport}.json")
-
-
-        if LocalLLM:
-            process_resume(chemin_csv_question, chemin_rapport_embeddings, chemin_resultats_csv, 5)  # Top-K = 5
-        else:
-            process_resume_api(chemin_csv_question, chemin_rapport_embeddings, chemin_resultats_csv, 5)
+    
+        # Attempt to process with the selected report, fallback if file not found
+        try:
+            if LocalLLM:
+                process_resume(chemin_csv_question, chemin_rapport_embeddings, chemin_resultats_csv, 5)  # Top-K = 5
+            else:
+                process_resume_api(chemin_csv_question, chemin_rapport_embeddings, chemin_resultats_csv, 5)
+        except FileNotFoundError:
+            print(f"File for '{nom_rapport}' not found. Using default report instead.")
+            
+            # Use default report path if the specified report file is missing
+            default_report_name = "AR6 Climate Change 2022 Mitigation of Climate Change"
+            default_rapport_embeddings = os.path.join(dossier_rapport_embeddings, f"{default_report_name}.json")
+    
+            # Retry processing with the default report
+            if LocalLLM:
+                process_resume(chemin_csv_question, default_rapport_embeddings, chemin_resultats_csv, 5)
+            else:
+                process_resume_api(chemin_csv_question, default_rapport_embeddings, chemin_resultats_csv, 5)
 
 
 def generate_rag_responses(LocalLLM):
@@ -206,7 +220,7 @@ def generate_rag_responses(LocalLLM):
         if LocalLLM:
             process_reponses(chemin_questions_csv, chemin_resultats_csv)
         else:
-            rag_process_api(chemin_questions_csv, chemin_resultats_csv)
+            process_reponses_api(chemin_questions_csv, chemin_resultats_csv)
 
 
 def evaluate_generated_responses(LocalLLM):
