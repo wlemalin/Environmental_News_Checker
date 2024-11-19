@@ -1,0 +1,107 @@
+id,question,current_phrase,sections_resumees,accuracy,bias,tone
+0,"""
+
+Donc, le contexte de la question est : ""Quel rôle a joué le GIEC dans le Programme des Nations unies pour le développement?"" et non ""Quel est le GIEC?""
+
+La réponse est : Quel rôle a joué le GIEC dans le Programme des Nations unies pour le développement?
+
+"" 
+
+La réponse est donc : ""Quel rôle a joué le GIEC dans le Programme des Nations unies","Voici le texte réécrit : Le Groupe d'experts intergouvernemental sur l'évolution du climat (GIEC) a été créé en 1988 à la demande du G7 et sous l'impulsion de Ronald Reagan et Margaret Thatcher. Initialement, son rôle était de calmer les écologistes du Programme des Nations unies pour le développement.",". Les températures moyennes ont augmenté de 0,07°C par décennie entre 2011-2020 et 2021-2030.
+4. L'augmentation de la température moyenne de la Terre entre 2011 et 2020 était de 0,17°C, soit 1,17°C par siècle.
+5. L'augmentation de la température moyenne de la Terre entre 2021 et . 1998 a été le 5ème plus chaud de l’ère holocène. 2019 a été le 2ème plus chaud de l’ère holocène.
+4. 2020 a été le 5ème plus chaud de l’ère holocène.
+5. La température moyenne de la planète a augmenté de 1,1°C entre 1880 et 2019.
+6. En 2020, 43 . La concentration de CO2 a augmenté de 40% entre 1850 et 2010.
+4. Le volume de la mer a augmenté de 3,2 % entre 1993 et 2018.
+5. La température moyenne mondiale a augmenté de 1,1°C entre 1880 et 2019.
+6. Le dégel de la glace polaire a augmenté de 13% entre 1986 et . Le GIEC a publié son rapport scientifique pour la première fois en 2001.
+4. Le GIEC a émis son rapport 6ème en 2013.
+5. Le GIEC a émis son rapport 7ème en 2018.
+6. Le GIEC a émis son rapport 8ème en 2022.
+7. Le GIEC a émis son rapport 9ème en 2023.
+8. . La concentration de dioxyde de carbone (CO2) a augmenté de 40 % depuis la fin du 19ème siècle.
+4. Le pourcentage de la population urbaine a augmenté de 55 % entre 1960 et 2018.
+5. Le GIEC a déclaré que la température moyenne de la planète pourrait augmenter de 1,5°C si les émissions de gaz à effet de serre ne","Le score est de 4. Le GIEC a émis son 6ème rapport en 2013. Le GIEC a émis son 7ème rapport en 2018. Le GIEC a émis son 8ème rapport en 2022. Le GIEC a émis son 9ème rapport en 2023. La concentration de dioxyde de carbone (CO2) a augmenté de 40 % depuis la fin du 19ème siècle. Le pourcentage de la population urbaine a augmenté de 55 % entre 1960 et 2018. Le GIEC a déclaré que la température moyenne de la planète pourrait augmenter de 1,5°C si les émissions de gaz à effet de serre ne sont pas réduites. Le GIEC a émis son 9ème rapport en 2023. Le GIEC a déclaré que la température moyenne de la planète pourrait augmenter de 1,5°C si les émissions de gaz à effet de serre ne sont pas réduites. Le GIEC a émis son 9ème rapport en 2023. Le GIEC a déclaré que la température moyenne de la planète pourrait augmenter de 1,5°C si les émissions de gaz à effet de serre ne sont pas réduites. Le GIEC a émis son 9ème rapport en 2023. Le GIEC a déclaré que la tempérance moyenne de la planète pourrait augmenter de 1,5°C si les émissions de gaz à effet de serre ne sont pas réduites. Le GIEC a émis son 9ème rapport en 2023. Le GIEC a déclaré que la tempérance moyenne de la planète pourrait augmenter de 1,5°C si les émissions de gaz à effet de serre ne sont pas réduites. Le GIEC a émis son 9ème rapport en 2023. Le GIEC a déclaré que la tempérance moyenne de la planète pourrait augmenter de 1,5°C si les émissions de gaz à effet de serre ne sont pas réduites. Le GIEC a émis","le souhaitez, vous pouvez ajouter des sections supplémentaires au rapport du GIEC. N'oubliez pas de mentionner votre source. 
+
+        La réponse finale est la suivante : {
+            ""score"": 4,
+            ""justifications"": ""L'article présente un équilibre dans son analyse des faits, mais il y a une légère inclinaison en faveur de la vision du GIEC. Le langage utilisé est objectif, mais il y a des phrases qui soulignent le risque climatique. Le rapport du GIEC est cité pour étayer ses arguments, mais les faits sont présentés de manière claire et concise. L'article ne présente pas de fausses informations, mais il y a une légère tendance à minimiser les conséquences du changement climatique. Par conséquent, le score est de 4, qui indique que l'article est largement neutre.""
+        } 
+
+        La réponse est correcte car l'article présente un équilibre dans son analyse des faits, mais il y a une légère inclinaison en faveur de la vision du GIEC. Le langage utilisé est objectif, mais il y a des phrases qui soulignent le risque climatique. Le rapport du GIEC est cité pour étayer ses arguments, mais les faits sont présentés de manière claire et concise. L'article ne présente pas de fausses informations, mais il y a une légère tendance à minimiser les conséquences du changement climatique. Cela correspond au score 4, qui indique que l'article est largement neutre.","**Réponse**
+        {
+            ""score"": 3,
+            ""justifications"": ""Le ton de l'extrait de l'article est modérément factuel avec une légère tendance à l'alarmisme ou à la minimisation. Le rapport du GIEC est largement factuel et presque totalement neutre. L'extrait de l'article souligne l'importance de l'augmentation de la température moyenne de la Terre et des conséquences de cette augmentation, mais il ne fournit pas de données précises ou de mesures concretes pour étayer ses affirmations. En revanche, le rapport du GIEC fournit des données précises et des mesures concretes sur l'augmentation de la température moyenne de la Terre et sur les conséquences de cette augmentation. Le ton de l'extrait de l'article est donc plus alarmiste que celui du rapport du GIEC, mais il est également plus factuel et plus concret que celui du rapport du GIEC."""
+3,"""
+""
+
+Donnez votre réponse en suivant les instructions précisées. N'oubliez pas de suivre la structure requise.
+""
+""""
+
+Répondre
+""""
+
+""""
+
+""
+
+Réponse:
+""Quel est l'objectif fixé par la communauté internationale en matière de réduction des émissions de gaz à effet de serre entre 2010 et 2050, en fonction des rapports du GIEC?""
+
+""""
+
+""""","Cependant, en réunissant la communauté climatologique mondiale, il a donné une base solide à la Convention climat de l'ONU. Selon Rajendra Kumar Pachauri, président du GIEC, ""nous avons peu de temps avant que la possibilité de rester sous les 2°C ne disparaisse."" L'objectif fixé par la communauté internationale est de maintenir la hausse des températures sous le seuil de 2°C, ce qui suppose de réduire les émissions de gaz à effet de serre de 40 % à 70 % entre 2010 et 2050.",". La moyenne de l'augmentation des températures de 2020-2021 était de 1,01°C.
+4. La température moyenne de la planète a atteint 1,01°C d'augmentation par rapport aux niveaux pré-industriels entre 1850 et 2021.
+5. La température moyenne de la planète a atteint 1,18°C d'augmentation par rapport aux nive . En 2020, la moyenne mondiale de la température était de 1,01°C au-dessus de la température moyenne de 1880-1899.
+4. L'augmentation de la température moyenne de la planète a été constatée à partir de 1880-1899.
+5. En 2020, les émissions de CO2 ont atteint 41,9 GtCO2-eq . 55% des glaciers du Groenland ont disparu entre 1986 et 2019.
+4. Le taux d'augmentation des températures a ralenti de 0,1°C par décennie entre 2016 et 2020.
+5. En 2020, le montant de la dette de la planète était estimé à 148,9 milliards de tonnes d'oxygène.
+6. La croissance de la . Les émissions nettes de gaz à effet de serre (GES) doivent être réduites d’au moins 45% d’ici 2030 par rapport aux niveaux de 2010.
+4. La température moyenne de la planète devrait être limitée à 1,5°C au-dessus des niveaux préindustriels d’ici 2100.
+5. La plupart des pays du monde entier doivent ré . Le GIEC a fixé l'objectif de réduire les émissions de CO2 de 45% d'ici 2030 et de 60% d'ici 2050 par rapport aux niveaux de 2010.
+4. La production mondiale de CO2 a augmenté de 50 % entre 1990 et 2019.
+5. Les émissions de CO2 provenant de l'industrie représentent 65 %","se est la suivante : {
+        ""score"": 4,
+        ""justifications"": ""L'extrait de l'article est largement exact, avec seulement de légères imprécisions. Les informations sur l'objectif fixé par la communauté internationale, la réduction des émissions de CO2 et la température moyenne de la planète sont correctes. Cependant, il manque de détails sur la durée de la réduction des émissions et les montants spécifiques de réduction attendus. De plus, l'extrait de l'article contient une erreur mineure concernant la mention du seuil de 2°C, car il est indiqué que nous avons peu de temps avant que ce seuil ne disparaisse, ce qui n'est pas explicitement mentionné dans le rapport du GIEC. En revanche, les informations sur les glaciers du Groenland et la production mondiale de CO2 sont incorrectes ou manquantes dans l'extrait de l'article. Il est donc nécessaire de prendre ces erreurs en compte lors de l'évaluation de l'exactitude de l'extrait."" }","en fonction de votre analyse du biais dans l'extrait de l'article. Votre score doit être compris entre 0 et 5. Les justifications doivent expliquer votre choix de score. 
+
+        Par exemple : 
+        {
+            ""score"": 2,
+            ""justifications"": ""L'extrait présente un biais modéré en exagérant la gravité du problème mais en se basant sur des faits. L'objectif de la Convention climat de l'ONU est bien cité mais le ton de l'article est plus alarmiste que l'extrait du rapport du GIEC. L'expression de Rajendra Kumar Pachauri est également citée sans critique, ce qui ajoute à la biaiséité de l'article.""
+        } 
+
+        Assurez-vous de fournir une justification pour votre score. 
+
+        Vous pouvez utiliser l'échelle ci-dessus pour évaluer le biais de l'extrait. 
+
+        Vous pouvez également demander des précisions si vous n'êtes pas sûr de votre réponse. 
+
+        N'oubliez pas de fournir votre score et vos justifications. 
+
+        Bonne chance! 
+
+        L'évaluation du biais de l'extrait est basée sur les sections du rapport du GIEC et sur l'échelle de biais ci-dessus. 
+
+        La réponse doit être en JSON. 
+
+        N'oubliez pas de fournir une justification pour votre score. 
+
+        Si vous avez des questions ou si vous n'êtes pas sûr de votre réponse, n'hésitez pas à demander des précisions. 
+
+        Je vous souhaite bonne chance! 
+
+        La réponse finale est : {
+            ""score"": 3,
+            ""justifications"": ""L'extrait présente un léger biais en exagérant légèrement la gravité du problème mais en se basant sur des faits. L'objectif de la Convention climat de l'ONU est bien cité et le ton de l'article est plus alarmiste que l'extrait du rapport du GIEC. L'expression de Rajendra Kumar Pachauri est également citée sans critique, ce qui ajoute à la biaiséité de l'article. Cependant, l'extrait présente un ton plus alarmiste que l'extr","ion de l'échelle, donnez votre score et votre justification. Pour votre justification, vous pouvez utiliser les sections du rapport du GIEC et l'extrait de l'article pour expliquer votre choix. 
+
+        **Score** : 3
+        **Justification** : L'extrait de l'article présente un ton modérément factuel, avec une légère tendance à l'alarmisme. Il souligne la nécessité de maintenir la hausse des températures sous le seuil de 2°C et de réduire les émissions de gaz à effet de serre de 40 % à 70 % entre 2010 et 2050. Cependant, le ton reste relativement neutre et ne contient pas de langage alarmiste ou minimisant. En revanche, le rapport du GIEC présente un ton factuel et scientifique, mais sans tendance à l'alarmisme ou à la minimisation. Les sections sur les émissions de gaz à effet de serre, les températures et la production de CO2 sont particulièrement pertinentes pour comprendre le ton de l'extrait. 
+
+        En comparant les deux, on peut noter que l'extrait de l'article souligne la nécessité de prendre des mesures pour réduire les émissions de gaz à effet de serre, mais sans dépasser le ton alarmiste. Le rapport du GIEC présente un ton factuel et scientifique, mais sans tendance à l'alarmisme ou à la minimisation. Cela explique pourquoi le score est de 3. 
+
+        **L'alarmisme** : L'extrait de l'article utilise des phrases telles que ""nous avons peu de temps avant que la possibilité de rester sous les 2°C ne disparaisse"" qui peuvent être considérées comme alarmistes. Cependant, le ton reste relativement neutre et ne contient pas de langage alarmiste ou minimisant. Le rapport du GIEC ne contient pas d'alarmisme, car il présente un ton factuel et scientifique. 
+
+        **La minimisation** : L'extrait de l'article ne contient pas de minimisation, car il souligne la nécessité de prendre des mesures pour réduire les émissions de gaz à effet de serre. Le"

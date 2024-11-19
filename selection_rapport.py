@@ -13,7 +13,7 @@ def find_report_by_title(article_title):
         str: The name of the GIEC report associated with the article title, or a default report name if no close match is found.
     """
     # Load the metadata with GIEC information
-    metadata_with_giec = pd.read_csv("/Users/mateodib/Desktop/Environmental_News_Checker-2/Data/Index/metadata_with_GIEC.csv")
+    metadata_with_giec = pd.read_csv("Data/Index/metadata_with_GIEC.csv")
 
     # Remove underscores from the "Title" column to improve matching
     metadata_with_giec["Title"] = metadata_with_giec["Title"].str.replace("_", "", regex=False)

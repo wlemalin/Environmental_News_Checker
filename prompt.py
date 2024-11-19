@@ -7,12 +7,9 @@ from langchain_ollama import OllamaLLM
 Functions for extract_relevant_ipcc_references
 
 """
-
-
-def prompt_selection_phrase_pertinente(model_name="llama3.2:3b-instruct-fp16"):
-    llm = OllamaLLM(model=model_name)
-    # Define the improved prompt template for LLM climate analysis in French with detailed instructions
-    prompt_template = """
+# Fonction pour créer le prompt pour chaque phrase
+def prompt_selection_phrase_pertinente(current_phrase, context):
+    return f"""
     Vous êtes un expert chargé d'identifier tous les sujets abordés dans le texte suivant, qu'ils soient ou non liés à l'environnement, au changement climatique ou au réchauffement climatique.
     
     Phrase : {current_phrase}
@@ -29,15 +26,6 @@ def prompt_selection_phrase_pertinente(model_name="llama3.2:3b-instruct-fp16"):
     - Réponse binaire (0 ou 1) : 1
     - Liste des sujets abordés : [Incendies, gestion des forêts, réchauffement climatique, économie locale, GIEC]
     """
-
-    prompt = PromptTemplate(template=prompt_template, input_variables=[
-                            "current_phrase", "context"])
-
-    # Directly chain prompt with LLM using the | operator
-    llm_chain = prompt | llm  # Using simplified chaining without LLMChain
-
-    # Use pipe to create a chain where prompt output feeds into the LLM
-    return llm_chain
 
 
 

@@ -1,0 +1,30 @@
+id,current_phrase,context,binary_response,subjects,question
+0,"Voici le texte réécrit : Le Groupe d'experts intergouvernemental sur l'évolution du climat (GIEC) a été créé en 1988 à la demande du G7 et sous l'impulsion de Ronald Reagan et Margaret Thatcher. Initialement, son rôle était de calmer les écologistes du Programme des Nations unies pour le développement.","Voici le texte réécrit : Le Groupe d'experts intergouvernemental sur l'évolution du climat (GIEC) a été créé en 1988 à la demande du G7 et sous l'impulsion de Ronald Reagan et Margaret Thatcher. Initialement, son rôle était de calmer les écologistes du Programme des Nations unies pour le développement. Cependant, en réunissant la communauté climatologique mondiale, il a donné une base solide à la Convention climat de l'ONU.",0.0,,"""
+
+Donc, le contexte de la question est : ""Quel rôle a joué le GIEC dans le Programme des Nations unies pour le développement?"" et non ""Quel est le GIEC?""
+
+La réponse est : Quel rôle a joué le GIEC dans le Programme des Nations unies pour le développement?
+
+"" 
+
+La réponse est donc : ""Quel rôle a joué le GIEC dans le Programme des Nations unies"
+3,"Cependant, en réunissant la communauté climatologique mondiale, il a donné une base solide à la Convention climat de l'ONU. Selon Rajendra Kumar Pachauri, président du GIEC, ""nous avons peu de temps avant que la possibilité de rester sous les 2°C ne disparaisse."" L'objectif fixé par la communauté internationale est de maintenir la hausse des températures sous le seuil de 2°C, ce qui suppose de réduire les émissions de gaz à effet de serre de 40 % à 70 % entre 2010 et 2050.","Initialement, son rôle était de calmer les écologistes du Programme des Nations unies pour le développement. Cependant, en réunissant la communauté climatologique mondiale, il a donné une base solide à la Convention climat de l'ONU. Selon Rajendra Kumar Pachauri, président du GIEC, ""nous avons peu de temps avant que la possibilité de rester sous les 2°C ne disparaisse."" L'objectif fixé par la communauté internationale est de maintenir la hausse des températures sous le seuil de 2°C, ce qui suppose de réduire les émissions de gaz à effet de serre de 40 % à 70 % entre 2010 et 2050.",nan,"Communauté climatologique mondiale, Convention climat de l'ONU, Rajendra Kumar Pachauri, Hausse des températures, missions de gaz à effet de serre, Objectif de maintenir la hausse des températures sous le seuil de 2°C, Réduction des émissions de gaz à effet de serre, volution des émissions de gaz à effet de serre entre 2010 et 2050, Programme des Nations unies pour le développement, cologistes, conomie, Température, Gaz à effet de serre, Sécurité, Politique, Communauté internationale, volution des températures, Sécurité climatique, missions, volution, conomie, Politique, Sécurité, Température, Communauté, volution, missions, conomie, Politique, Sécurité, volution, missions, conomie, Politique, Sécurité, Température","""
+""
+
+Donnez votre réponse en suivant les instructions précisées. N'oubliez pas de suivre la structure requise.
+""
+""""
+
+Répondre
+""""
+
+""""
+
+""
+
+Réponse:
+""Quel est l'objectif fixé par la communauté internationale en matière de réduction des émissions de gaz à effet de serre entre 2010 et 2050, en fonction des rapports du GIEC?""
+
+""""
+
+"""""

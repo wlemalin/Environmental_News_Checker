@@ -47,9 +47,8 @@ def process_ipcc_reports():
         chemin_rapport_pdf = os.path.join(chemin_rapports_pdf, fichier)
         chemin_rapport_indexed = os.path.join(chemin_output_indexed, fichier.replace('.pdf', '.json'))
 
-        
-
         process_pdf_to_index(chemin_rapport_pdf, chemin_rapport_indexed)
+
 
 def extract_relevant_ipcc_references():
     
@@ -123,6 +122,8 @@ def generate_questions():
         else:
             question_generation_process_api(file_path, output_path_questions)
 
+
+
 def summarize_source_sections(LocalLLM):
     
     """
@@ -131,10 +132,12 @@ def summarize_source_sections(LocalLLM):
     from selection_rapport import find_report_by_title
     from resume_api import process_resume_api
     from resume import process_resume
+    from Creation_Metadata_with_GIEC import process_metadata_with_giec_reports
     
     chemin_csv_questions = 'Data/resultats/resultats_intermediaires/questions/'
     chemin_resultats_sources = 'Data/resultats/resultats_intermediaires/sources_resumees/'
     dossier_rapport_embeddings = 'Data/IPCC/rapports_indexed/'
+    
     
     # Vérifier si le dossier de destination existe, sinon le créer
     if not os.path.exists(os.path.dirname(chemin_resultats_sources)):
@@ -152,6 +155,10 @@ def summarize_source_sections(LocalLLM):
         chemin_csv_question = os.path.join(chemin_csv_questions, fichier)
         chemin_resultats_csv = os.path.join(chemin_resultats_sources, fichier.replace('_with_questions.csv', '_resume_sections_results.csv'))
         article_title = fichier.replace('_with_questions.csv', '')
+        
+        # Create the Metadata with GIEC reports
+        process_metadata_with_giec_reports()
+        
         nom_rapport = find_report_by_title(article_title)
         
         # Remove the colon
@@ -288,9 +295,9 @@ def html_visualisation_creation():
     from Creation_code_HTML import generate_html_from_json
     
     
-    json_dir = "/Users/mateodib/Desktop/Environmental_News_Checker-2/Data/resultats/resultats_intermediaires/articles_json/"
-    output_html = "/Users/mateodib/Desktop/Environmental_News_Checker-2/Visualisation_results.html"
-    articles_data_dir = "/Users/mateodib/Desktop/Environmental_News_Checker-Mateo/articles_data/"
+    json_dir = "Data/resultats/resultats_intermediaires/articles_json/"
+    output_html = "Visualisation_results.html"
+    articles_data_dir = "articles_data/"
     generate_html_from_json(json_dir, output_html, articles_data_dir)
 
 def run_full_processing_pipeline(LocalLLM):

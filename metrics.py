@@ -4,15 +4,15 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 import pandas as pd
 from tqdm import tqdm
 
-# Initialiser le modèle et le tokenizer avec pipeline pour text-generation
+# Initialize model and tokenizer with pipeline for text generation
 model_id = "meta-llama/Llama-3.2-3B-Instruct"
 tokenizer = AutoTokenizer.from_pretrained(model_id)
 pipe = pipeline(
     "text-generation",
     model=model_id,
-    torch_dtype=torch.bfloat16,
+    torch_dtype=torch.bfloat16,  # Use mixed-precision for efficiency
     device_map="auto",
-    pad_token_id=tokenizer.eos_token_id  # Définit pad_token_id pour éviter le warning
+    pad_token_id=tokenizer.eos_token_id  # Avoid warnings
 )
 
 # Définir les prompts pour chaque métrique
@@ -88,23 +88,31 @@ prompts = {
     """
 }
 
-# Fonction pour évaluer une phrase sur toutes les métriques
+# Generate prompt for a specific metric
+def generate_metric_prompt(metric, current_phrase, sections_resumees):
+    return prompts[metric].format(current_phrase=current_phrase, sections_resumees=sections_resumees)
+
+# Function to evaluate a single metric using the LLM
+def evaluate_metric_with_llm(metric, current_phrase, sections_resumees):
+    prompt = generate_metric_prompt(metric, current_phrase, sections_resumees)
+    response_content = pipe(prompt, max_new_tokens=500)[0]["generated_text"].strip()
+    
+    # Use prompt length to reliably extract only the generated response
+    # Remove the prompt part from the start of the generated text
+    response_only = response_content[len(prompt):].strip()
+        
+    print(f'Voici la réponse du LLM : {response_only}')
+    return response_only
+
+# Evaluate all metrics for a phrase
 def evaluer_phrase_sur_toutes_metrices(phrase_id, question, current_phrase, sections_resumees):
     evaluations = {}
-    for metric, prompt_template in prompts.items():
-        # Construire le prompt avec les phrases et sections de résumé appropriées
-        prompt = prompt_template.format(current_phrase=current_phrase, sections_resumees=sections_resumees)
-        
-        # Génération avec pipeline
-        output = pipe(prompt, max_new_tokens=1000)
-        
-        # Extraction de la réponse générée depuis le champ 'generated_text'
-        response_content = output[0]["generated_text"][-1]
-        
-        # Vérification s'il y a un champ 'content' pour récupérer uniquement la réponse du LLM
-        response_only = response_content if "content" not in response_content else response_content["content"]
-
-        evaluations[metric] = response_only.strip()
+    for metric in prompts.keys():
+        try:
+            evaluations[metric] = evaluate_metric_with_llm(metric, current_phrase, sections_resumees)
+        except Exception as exc:
+            print(f"Error evaluating metric '{metric}' for phrase ID {phrase_id}: {exc}")
+            evaluations[metric] = None
     
     return {
         "id": phrase_id,
@@ -114,40 +122,39 @@ def evaluer_phrase_sur_toutes_metrices(phrase_id, question, current_phrase, sect
         **evaluations
     }
 
-# Fonction pour paralléliser l'évaluation des phrases sur toutes les métriques
+# Parallel evaluation for all phrases and metrics
 def evaluer_phrase_parallele(rag_df):
     results = []
+
+    # Set max_workers to utilize hardware capacity (adjust based on resources)
     with ThreadPoolExecutor(max_workers=1) as executor:
-        futures = []
-        for _, row in rag_df.iterrows():
-            phrase_id = row['id']
-            question = row['question']
-            current_phrase = row['current_phrase']
-            sections_resumees = row['sections_resumees']
-            futures.append(executor.submit(
+        futures = [
+            executor.submit(
                 evaluer_phrase_sur_toutes_metrices,
-                phrase_id, question, current_phrase, sections_resumees
-            ))
+                row['id'], row['question'], row['current_phrase'], row['sections_resumees']
+            )
+            for _, row in rag_df.iterrows()
+        ]
         
         for future in tqdm(as_completed(futures), total=len(futures), desc="Evaluating phrases for all metrics"):
             try:
                 result = future.result()
                 results.append(result)
             except Exception as exc:
-                print(f"Error evaluating phrase: {exc}")
+                print(f"Error processing phrase: {exc}")
     
     return pd.DataFrame(results)
 
-# Fonction principale pour orchestrer le processus d'évaluation
+# Main evaluation process function
 def process_evaluation(chemin_questions_csv, rag_csv, resultats_csv):
-    # Chargement des données
+    # Load data
     rag_df = pd.read_csv(rag_csv)
     questions_df = pd.read_csv(chemin_questions_csv, usecols=['id', 'current_phrase'])
     rag_df = rag_df.merge(questions_df, on='id', how='left')
 
-    # Évaluer chaque phrase pour toutes les métriques
+    # Evaluate each phrase for all metrics
     resultats = evaluer_phrase_parallele(rag_df)
     
-    # Sauvegarder les résultats
+    # Save the results to CSV
     resultats.to_csv(resultats_csv, index=False, quotechar='"')
     print(f"Evaluation results saved in {resultats_csv}")

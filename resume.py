@@ -1,186 +1,123 @@
-from concurrent.futures import ThreadPoolExecutor, as_completed
-import numpy as np
-import pandas as pd
-import torch
-from sentence_transformers import SentenceTransformer, util
-from tqdm import tqdm
 from embeddings_creation import embed_texts, generer_embeddings_rapport
-from prompt import creer_llm_resume
+import torch
+from transformers import pipeline, AutoTokenizer
+from concurrent.futures import ThreadPoolExecutor, as_completed
+import pandas as pd
+from tqdm import tqdm
+from sentence_transformers import SentenceTransformer, util
+import numpy as np
 
+# Initialize model and tokenizer with pipeline for text generation
+model_id = "meta-llama/Llama-3.2-3B-Instruct"
+tokenizer = AutoTokenizer.from_pretrained(model_id)
+pipe = pipeline(
+    "text-generation",
+    model=model_id,
+    torch_dtype=torch.bfloat16,
+    device_map="auto",
+    pad_token_id=tokenizer.eos_token_id  # Set pad_token_id to avoid warning
+)
 
+# Define the prompt template for summarization
+resume_prompt_template = """
+**Tâche** : Fournir un résumé détaillé et structuré des faits scientifiques contenus dans la section du rapport du GIEC, en les reliant directement à la question posée. La réponse doit être sous forme de liste numérotée, avec chaque point citant précisément les données chiffrées ou informations textuelles pertinentes.
+
+**Instructions** :
+1. Inclure des faits scientifiques directement en rapport avec la question.
+2. Intégrer des données chiffrées et précises.
+3. Ne pas inclure d'opinions ou d'interprétations.
+
+### Question :
+"{question}"
+
+### Sections du rapport :
+{retrieved_sections}
+
+**Format de réponse attendu** :
+1. Le niveau global de la mer a augmenté de 0,19 m entre 1901 et 2010.
+2. Les températures moyennes ont augmenté de 1,09°C entre 1850-1900 et 2011-2020.
+"""
+
+# Function to generate the formatted summarization prompt
+def generate_resume_prompt(question, retrieved_sections):
+    return resume_prompt_template.format(question=question, retrieved_sections=retrieved_sections)
+
+# Function to generate a summary using the LLM
+def generate_resume_with_llm(question, section):
+    prompt = generate_resume_prompt(question, section)
+    output = pipe(prompt, max_new_tokens=100)  # Adjust max_new_tokens to optimize memory
+    response_content = output[0]["generated_text"].strip()
+    
+    # Use prompt length to reliably extract only the generated response
+    # Remove the prompt part from the start of the generated text
+    response_only = response_content[len(prompt):].strip()
+        
+    print(f'Voici la réponse du LLM : {response_only}')
+    return response_only
+
+# Function to process summaries in parallel
+def generer_resume_parallel(df_questions):
+    results = []
+
+    # Using ThreadPoolExecutor for parallel processing
+    with ThreadPoolExecutor(max_workers=2) as executor:  # Adjust max_workers based on system resources
+        futures = {
+            executor.submit(generate_resume_with_llm, row['question'], section): (row['id'], row['question'], section)
+            for _, row in df_questions.iterrows()
+            for section in row['retrieved_sections']
+        }
+
+        # Process results as they complete
+        for future in tqdm(as_completed(futures), total=len(futures), desc="Generating summaries"):
+            (question_id, question, section) = futures[future]
+
+            try:
+                # Get the generated summary
+                resume_section = future.result()
+                results.append({
+                    "id": question_id,
+                    "question": question,
+                    "sections": section,
+                    "resume_sections": resume_section
+                })
+
+            except Exception as exc:
+                print(f"Error generating summary for question ID {question_id}: {exc}")
+
+    return pd.DataFrame(results)
+
+# Function to load data and embeddings
 def charger_donnees_et_modele(chemin_csv_questions, chemin_rapport_embeddings):
-    """
-    Loads the questions data from a CSV file and report embeddings from the specified file.
-
-    Args:
-        chemin_csv_questions (str): Path to the CSV file containing the questions.
-        chemin_rapport_embeddings (str): Path to the file containing the report embeddings.
-
-    Returns:
-        tuple: A tuple containing the DataFrame of questions, report embeddings, report sections, report titles, and the embedding model.
-    """
-    # Charger les questions
     df_questions = pd.read_csv(chemin_csv_questions)
-    print(f"Questions loaded. Total: {len(df_questions)}")
-
-    # Configurer le modèle d'embedding et charger les embeddings et sections du rapport
-    embed_model = SentenceTransformer(
-        'sentence-transformers/all-MiniLM-L6-v2', device='cpu')
-    embeddings_rapport, sections_rapport, titles_rapport = generer_embeddings_rapport(
-        chemin_rapport_embeddings, embed_model)
-    print("Report embeddings and sections loaded.")
-
+    embed_model = SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2', device='cpu')
+    embeddings_rapport, sections_rapport, titles_rapport = generer_embeddings_rapport(chemin_rapport_embeddings, embed_model)
     return df_questions, embeddings_rapport, sections_rapport, titles_rapport, embed_model
 
-
+# Function to filter relevant sections for each question
 def filtrer_sections_pertinentes(df_questions, embed_model, embeddings_rapport, sections_rapport, top_k=5):
-    """
-    Filters the most relevant sections of the report for each question based on cosine similarity.
-
-    Args:
-        df_questions (DataFrame): DataFrame containing the questions.
-        embed_model: Embedding model used to generate embeddings for the questions.
-        embeddings_rapport (list): List of embeddings for the report sections.
-        sections_rapport (list): List of report sections.
-        top_k (int, optional): The number of most similar sections to retrieve for each question. Default is 5.
-
-    Returns:
-        DataFrame: DataFrame with an additional column containing the retrieved relevant sections for each question.
-    """
     retrieved_sections_list = []
-
     for _, row in df_questions.iterrows():
         question_embedding = embed_texts([row['question']], embed_model)[0]
-
-        # Calculer les similarités et sélectionner les top-k indices
-        similarites = util.cos_sim(question_embedding, torch.tensor(
-            embeddings_rapport, device='cpu'))
+        similarites = util.cos_sim(question_embedding, torch.tensor(embeddings_rapport, device='cpu'))
         top_k_indices = np.argsort(-similarites[0].cpu()).tolist()[:top_k]
-
-        # Récupérer les sections correspondantes
-        sections = [sections_rapport[i]
-                    for i in top_k_indices if sections_rapport[i].strip()]
+        sections = [sections_rapport[i] for i in top_k_indices if sections_rapport[i].strip()]
         retrieved_sections_list.append(sections)
-
-    # Ajouter les sections retrouvées comme nouvelle colonne
     df_questions['retrieved_sections'] = retrieved_sections_list
     return df_questions
 
-
-def generer_resume_parallel(df_questions, llm_chain_resume):
-    """
-    Summarizes each associated section of each question in parallel using the LLM.
-
-    Args:
-        df_questions (DataFrame): DataFrame containing questions and their retrieved sections.
-        llm_chain_resume: LLM chain for generating section summaries.
-
-    Returns:
-        DataFrame: DataFrame containing question IDs, questions, original sections, and their corresponding summaries.
-    """
-    resultats = []
-    with ThreadPoolExecutor(max_workers=6) as executor:
-        futures = []
-        # Iterate over each question and its associated sections
-        for _, row in df_questions.iterrows():
-            question_id = row['id']
-            question_text = row['question']
-            # List of sections for this question
-            retrieved_sections = row['retrieved_sections']
-            # For each section associated with the question, create a future for summarization
-            for section in retrieved_sections:
-                futures.append(executor.submit(
-                    generer_resume,
-                    question_id,
-                    question_text,
-                    section,  # Pass each section individually
-                    llm_chain_resume
-                ))
-        # Collect results as they complete
-        for future in tqdm(as_completed(futures), total=len(futures), desc="Résumés des sections"):
-            try:
-                result = future.result()
-                resultats.append(result)
-            except Exception as exc:
-                print(f"Erreur lors du résumé d'une question : {exc}")
-    # Combine all results into a DataFrame for saving or further processing
-    return pd.DataFrame(resultats)
-
-
-def generer_resume(phrase_id, question, section, llm_chain_resume):
-    """
-    Generates a summary for a single section of a question using the LLM.
-
-    Args:
-        phrase_id (int): The unique identifier for the question.
-        question (str): The question context for generating the summary.
-        section (str): The specific section of the report to summarize.
-        llm_chain_resume: LLM chain used for summarization.
-
-    Returns:
-        dict: A dictionary containing the question ID, question text, original section, and the section summary.
-    """
-    # Generate the summary for the individual section with the given question context
-    response_resume = llm_chain_resume.invoke({
-        "question": question,
-        "retrieved_sections": section
-    })
-    # Extract and clean up the generated summary text
-    resume = response_resume['text'].strip() if isinstance(
-        response_resume, dict) and "text" in response_resume else response_resume.strip()
-    # Return the result as a dictionary with ID, question, original section, and the section summary
-    return {
-        "id": phrase_id,               # Add ID to the results
-        "question": question,           # Add question to the results
-        "section": section,             # The original section being summarized
-        # Summary of the specific section in context of the question
-        "resume_section": resume
-    }
-
-
+# Main process function
 def process_resume(chemin_csv_questions, chemin_rapport_embeddings, chemin_resultats_csv, top_k=3):
-    """
-    Executes the full process of loading questions, filtering relevant sections, summarizing sections, and saving results to a CSV file.
-
-    Args:
-        chemin_csv_questions (str): Path to the CSV file containing the questions.
-        chemin_rapport_embeddings (str): Path to the file containing report embeddings.
-        chemin_resultats_csv (str): Path to the output CSV file where results will be saved.
-        top_k (int, optional): The number of most similar sections to retrieve for each question. Default is 3.
-
-    Workflow:
-        1. Load questions and report embeddings.
-        2. Filter the most relevant sections for each question.
-        3. Summarize the relevant sections for each question in parallel.
-        4. Group results by question ID to create a consolidated summary.
-        5. Save the consolidated summaries to an output CSV file.
-    """
-    # Charger les données et le modèle
-    df_questions, embeddings_rapport, sections_rapport, _, embed_model = charger_donnees_et_modele(
-        chemin_csv_questions, chemin_rapport_embeddings)
-
-    # Filtrer les sections pertinentes et obtenir un DataFrame avec retrieved_sections
-    df_questions = filtrer_sections_pertinentes(
-        df_questions, embed_model, embeddings_rapport, sections_rapport, top_k)
-
-    # Configure the LLM chain for summarization
-    llm_chain_resume = creer_llm_resume()
-
-    # Summarize sections per question
-    resultats = generer_resume_parallel(df_questions, llm_chain_resume)
+    df_questions, embeddings_rapport, sections_rapport, _, embed_model = charger_donnees_et_modele(chemin_csv_questions, chemin_rapport_embeddings)
+    df_questions = filtrer_sections_pertinentes(df_questions, embed_model, embeddings_rapport, sections_rapport, top_k)
+    resultats = generer_resume_parallel(df_questions)
 
     # Group by question ID to concatenate sections and summaries
     resultats_grouped = resultats.groupby('id').agg({
-        # Take the first instance of the question (as it's the same for each ID)
         'question': 'first',
-        'section': lambda x: ' '.join(x),  # Concatenate all sections
-        'resume_section': lambda x: ' '.join(x)  # Concatenate all summaries
+        'sections': lambda x: ' '.join(x),
+        'resume_sections': lambda x: ' '.join(x)
     }).reset_index()
 
-    # Rename columns for clarity
-    resultats_grouped.rename(
-        columns={'section': 'sections', 'resume_section': 'resume_sections'}, inplace=True)
-
-    # Save results
-    resultats_grouped.to_csv(chemin_resultats_csv)
+    # Save results to CSV
+    resultats_grouped.to_csv(chemin_resultats_csv, index=False)
     print(f"Résumés sauvegardés dans le fichier {chemin_resultats_csv}")
