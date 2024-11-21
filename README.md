@@ -63,7 +63,7 @@ This command initiates the entire processing pipeline, from parsing and question
 
 Assurez-vous que vous avez un Mac M2 (ou une machine compatible) car Ollama est optimisé pour les environnements Apple Silicon (M1/M2).
 
-### Étapes d’installation
+### Étapes d'installation
 
 1. Installer Ollama
 Vous pouvez effectuer cette étape simplement en allant sur le lien : https://ollama.com/
@@ -79,7 +79,7 @@ Remplacez 3b par 1b si vous souhaitez télécharger la version 1B du modèle.
 Ollama va gérer le téléchargement du modèle en local et le préparer pour une utilisation directe.
 
 
-3. érifier l’installation
+3. érifier l'installation
 Après le téléchargement, vous pouvez vérifier si le modèle est bien installé et prêt à être utilisé en exécutant la commande suivante :
 
 ```{python}

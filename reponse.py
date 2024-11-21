@@ -1,101 +1,123 @@
+from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import pandas as pd
 from tqdm import tqdm
-from prompt import creer_prompt_reponses
+import torch
 
-# Compare questions to the summarized report sections
-def answer_questions_parallel(questions, llm_chain):
-    """
-    Processes multiple questions in parallel to generate answers using the LLM chain.
+# Configuration du modèle LLM
+model_id = "meta-llama/Meta-Llama-3.1-70B-Instruct"
 
-    Args:
-        questions (DataFrame): A pandas DataFrame containing the questions and relevant sections.
-        llm_chain: A language model chain for generating responses.
+quantization_config = BitsAndBytesConfig(
+    load_in_4bit=True,
+    llm_int8_enable_fp32_cpu_offload=True
+)
 
-    Returns:
-        list: A list of dictionaries containing question IDs, questions, summarized sections, original sections, and generated answers.
-    """
+# Charger le modèle quantifié avec déchargement
+quantized_model = AutoModelForCausalLM.from_pretrained(
+    model_id,
+    device_map="balanced",
+    torch_dtype=torch.bfloat16,
+    quantization_config=quantization_config,
+    offload_folder="/tmp"
+)
+
+tokenizer = AutoTokenizer.from_pretrained(model_id)
+
+print("Modèle LLM chargé avec succès.")
+
+# Définir le template de prompt pour la génération de réponses
+answer_prompt_template = """
+Vous êtes un expert en climatologie. Répondez à la question ci-dessous en vous basant uniquement sur les sections pertinentes du rapport du GIEC.
+
+**Instructions** :
+1. Utilisez les informations des sections pour formuler une réponse précise et fondée.
+2. Justifiez votre réponse en citant les sections, si nécessaire.
+3. Limitez votre réponse aux informations fournies dans les sections.
+
+**Question** : {question}
+
+**Sections du rapport** : {consolidated_text}
+
+**Réponse** :
+- **Résumé de la réponse** : (Réponse concise)
+- **Justification basée sur le rapport** : (Citez et expliquez les éléments pertinents)
+"""
+
+# Fonction pour générer un prompt formaté
+def generate_answer_prompt(question, consolidated_text):
+    return answer_prompt_template.format(question=question, consolidated_text=consolidated_text)
+
+# Fonction pour générer une réponse avec le LLM
+def generate_answer_with_llm(question, consolidated_text):
+    prompt = generate_answer_prompt(question, consolidated_text)
+    inputs = tokenizer(prompt, return_tensors="pt").to("cuda")
+    
+    # Générer la réponse
+    outputs = quantized_model.generate(
+        **inputs,
+        max_new_tokens=500,  # Ajustez la limite selon les besoins
+        pad_token_id=tokenizer.eos_token_id,
+        temperature=0.7
+    )
+    
+    # Décoder la réponse générée
+    response = tokenizer.decode(outputs[0], skip_special_tokens=True, clean_up_tokenization_spaces=True)
+    
+    print(f"LLM Response: {response}")
+    return response_only
+
+# Fonction pour gérer la génération des réponses en parallèle
+def answer_questions_parallel(df_questions):
     results = []
 
-    with ThreadPoolExecutor(max_workers=4) as executor:
-        futures = []
-        for _, row in tqdm(questions.iterrows(), total=len(questions), desc="Comparing questions"):
-            ID = row['id']
+    with ThreadPoolExecutor(max_workers=1) as executor:  # Ajustez le nombre de workers si nécessaire
+        futures = {
+            executor.submit(generate_answer_with_llm, row['question'], row['resume_sections']): row
+            for _, row in df_questions.iterrows()
+        }
+
+        # Traiter les résultats au fur et à mesure de leur achèvement
+        for future in tqdm(as_completed(futures), total=len(futures), desc="Generating answers"):
+            row = futures[future]
+            question_id = row['id']
             question = row['question']
             resume_sections = row['resume_sections']
             sections_brutes = row['sections']
 
-            futures.append(executor.submit(
-                answer_question,
-                question,
-                resume_sections,
-                sections_brutes,
-                llm_chain,
-                ID
-            ))
-
-        # Gather results
-        for future in tqdm(as_completed(futures), total=len(futures), desc="Retrieving answers"):
             try:
-                question, resume_sections, generated_answer, ID, sections_brutes = future.result()
+                # Obtenir la réponse générée
+                generated_answer = future.result()
                 results.append({
-                    "id": ID,
+                    "id": question_id,
                     "question": question,
                     "sections_resumees": resume_sections,
                     "retrieved_sections": sections_brutes,
                     "reponse": generated_answer
                 })
+
             except Exception as exc:
-                print(f"Error during RAG: {exc}")
+                print(f"Error generating answer for question ID {question_id}: {exc}")
 
-    return results
+    return pd.DataFrame(results)
 
-# Function to generate a response
-def answer_question(question, resume_sections, sections_brutes, llm_chain, ID):
-    """
-    Generates an answer for a given question using the provided LLM chain.
-
-    Args:
-        question (str): The question to be answered.
-        resume_sections (str): Consolidated text summarizing the relevant report sections.
-        sections_brutes (str): Original sections of the report.
-        llm_chain: A language model chain used to generate responses.
-        ID (int): The unique identifier for the question.
-
-    Returns:
-        tuple: Contains the question, summarized sections, generated answer, question ID, and original sections.
-    """
-    inputs = {
-        "question": question,
-        "consolidated_text": resume_sections
-    }
-    response = llm_chain.invoke(inputs)
-    generated_answer = response['text'] if isinstance(
-        response, dict) and "text" in response else response
-    generated_answer = generated_answer.strip()
-    return question, resume_sections, generated_answer, ID, sections_brutes
-
-# Main function to execute the RAG process
+# Fonction principale pour exécuter le processus RAG
 def process_reponses(chemin_questions_csv, chemin_resultats_csv):
     """
-    Executes the retrieval-augmented generation (RAG) process to generate answers and save them to a CSV file.
+    Exécute le processus de récupération et génération de réponses (RAG) pour générer des réponses et les sauvegarder dans un fichier CSV.
 
     Args:
-        chemin_questions_csv (str): Path to the CSV file containing questions.
-        chemin_resultats_csv (str): Path to the output CSV file where results will be saved.
+        chemin_questions_csv (str): Chemin du fichier CSV contenant les questions.
+        chemin_resultats_csv (str): Chemin du fichier CSV de sortie où les résultats seront sauvegardés.
 
-    Workflow:
-        1. Load questions from the input CSV file into a pandas DataFrame.
-        2. Create an LLM chain using the `creer_prompt_reponses` function.
-        3. Process the questions in parallel to generate answers using the LLM chain.
-        4. Save the generated answers to the output CSV file.
-        5. Print a confirmation message indicating where the results have been saved.
+    Workflow :
+        1. Charger les questions depuis le fichier CSV d'entrée dans un DataFrame pandas.
+        2. Traiter les questions en parallèle pour générer les réponses à l'aide du LLM.
+        3. Sauvegarder les réponses générées dans le fichier CSV de sortie.
+        4. Afficher un message de confirmation indiquant où les résultats ont été sauvegardés.
     """
     questions_df = pd.read_csv(chemin_questions_csv)
-    llm_chain = creer_prompt_reponses()
 
-    # Generate answers and save them to CSV
-    mentions = answer_questions_parallel(questions_df, llm_chain)
-    df_mentions = pd.DataFrame(mentions)
-    df_mentions.to_csv(chemin_resultats_csv, index=False, quotechar='"')
-    print(f"Mentions saved to file {chemin_resultats_csv}")
+    # Générer les réponses et les sauvegarder dans un fichier CSV
+    answers_df = answer_questions_parallel(questions_df)
+    answers_df.to_csv(chemin_resultats_csv, index=False, quotechar='"')
+    print(f"Answers saved to file {chemin_resultats_csv}")

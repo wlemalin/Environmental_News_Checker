@@ -2,6 +2,33 @@ from langchain import PromptTemplate
 from langchain_ollama import OllamaLLM
 
 
+"""
+
+Functions for extract_relevant_ipcc_references
+
+"""
+# Fonction pour créer le prompt pour chaque phrase
+def prompt_selection_phrase_pertinente(current_phrase, context):
+    return f"""
+    Vous êtes un expert chargé d'identifier tous les sujets abordés dans le texte suivant, qu'ils soient ou non liés à l'environnement, au changement climatique ou au réchauffement climatique.
+    
+    Phrase : {current_phrase}
+    context : {context}
+    
+    1. Si le texte mentionne de près ou de loin l'environnement, le changement climatique, le réchauffement climatique, ou des organisations, événements ou accords liés à ces sujets (par exemple le GIEC, les conférences COP, les accords de Paris, etc.), répondez '1'. Sinon, répondez '0'.
+    2. Listez **tous** les sujets abordés dans le texte, y compris ceux qui ne sont pas liés à l'environnement ou au climat.
+    
+    Format de réponse attendu :
+    - Réponse binaire (0 ou 1) : [Réponse]
+    - Liste des sujets abordés : [Sujet 1, Sujet 2, ...]
+    
+    Exemple de réponse :
+    - Réponse binaire (0 ou 1) : 1
+    - Liste des sujets abordés : [Incendies, gestion des forêts, réchauffement climatique, économie locale, GIEC]
+    """
+
+
+
 
 def create_questions_llm(model_name="llama3.2:3b-instruct-fp16"):
     """
@@ -39,35 +66,7 @@ def create_questions_llm(model_name="llama3.2:3b-instruct-fp16"):
     return llm_chain
 
 
-def prompt_selection_phrase_pertinente(model_name="llama3.2:3b-instruct-fp16"):
-    llm = OllamaLLM(model=model_name)
-    # Define the improved prompt template for LLM climate analysis in French with detailed instructions
-    prompt_template = """
-    Vous êtes un expert chargé d'identifier tous les sujets abordés dans le texte suivant, qu'ils soient ou non liés à l'environnement, au changement climatique ou au réchauffement climatique.
-    
-    Phrase : {current_phrase}
-    context : {context}
-    
-    1. Si le texte mentionne de près ou de loin l'environnement, le changement climatique, le réchauffement climatique, ou des organisations, événements ou accords liés à ces sujets (par exemple le GIEC, les conférences COP, les accords de Paris, etc.), répondez '1'. Sinon, répondez '0'.
-    2. Listez **tous** les sujets abordés dans le texte, y compris ceux qui ne sont pas liés à l'environnement ou au climat.
-    
-    Format de réponse attendu :
-    - Réponse binaire (0 ou 1) : [Réponse]
-    - Liste des sujets abordés : [Sujet 1, Sujet 2, ...]
-    
-    Exemple de réponse :
-    - Réponse binaire (0 ou 1) : 1
-    - Liste des sujets abordés : [Incendies, gestion des forêts, réchauffement climatique, économie locale, GIEC]
-    """
 
-    prompt = PromptTemplate(template=prompt_template, input_variables=[
-                            "current_phrase", "context"])
-
-    # Directly chain prompt with LLM using the | operator
-    llm_chain = prompt | llm  # Using simplified chaining without LLMChain
-
-    # Use pipe to create a chain where prompt output feeds into the LLM
-    return llm_chain
 
 
 def creer_llm_resume(model_name="llama3.2:3b-instruct-fp16"):
@@ -76,32 +75,35 @@ def creer_llm_resume(model_name="llama3.2:3b-instruct-fp16"):
     """
     llm = OllamaLLM(model=model_name)
     prompt_template_resume = """
-    **Tâche** : Fournir une liste des faits contenus dans la section du rapport du GIEC, en les organisant par pertinence pour répondre à la question posée. La réponse doit être sous forme de liste numérotée.
+    **Tâche** : Fournir un résumé détaillé et structuré des faits scientifiques contenus dans la section du rapport du GIEC, en les reliant directement à la question posée. La réponse doit être sous forme de liste numérotée, avec chaque point citant précisément les données chiffrées ou informations textuelles pertinentes.
 
     **Instructions** :
-    - **Objectif** : Lister tous les faits pertinents, y compris les éléments indirects ou contextuels pouvant enrichir la réponse.
-    - **Éléments à inclure** : 
-        1. Faits scientifiques directement liés à la question.
-        2. Faits indirects apportant un contexte utile.
-        3. Tendances, implications, ou statistiques pertinentes.
-        4. Autres informations utiles pour comprendre le sujet.
-    - **Restrictions** : Ne pas inclure d'opinions ou interprétations, uniquement les faits.
-    - **Format** : Utiliser une liste numérotée, chaque point limité à une ou deux phrases. Commencer par les faits les plus directement liés et finir par les éléments contextuels.
-    - **Limites d'informations restituées** : Limites la liste aux 3 faits les plus importants et soit le plus concis dans ta réponse.
+    - **Objectif** : Présenter une liste complète des faits pertinents, incluant les éléments directement en lien avec la question, ainsi que des informations contextuelles importantes qui peuvent enrichir la compréhension du sujet.
+    - **Directives spécifiques** :
+        1. Inclure des faits scientifiques directement en rapport avec la question, en les citant de manière précise.
+        2. Intégrer des données chiffrées, tendances, et statistiques spécifiques lorsque disponibles, en veillant à la clarté et la précision de la citation.
+        3. Fournir des éléments de contexte pertinents qui peuvent éclairer la réponse, sans extrapoler ou interpréter.
+        4. Utiliser un langage concis mais précis, en mentionnant chaque fait pertinent dans une ou deux phrases.
+        5. Être exhaustif dans les faits listés pouvant être intéressant, directement ou indirectement pou répondre à la question.
+    - **Restrictions** : 
+        - Ne pas inclure d'opinions ou de généralisations.
+        - Ne reformuler les informations que si cela permet de les rendre plus compréhensibles sans en altérer le sens.
+        - Ne présenter que des faits, sans ajout de suppositions ou interprétations.
+        - Ne pas ajouter de phrase introductrice comme 'Voici les fais retranscris' ou autre.
+    - **Format de réponse** : Utiliser une liste numérotée, en commençant par les faits les plus directement liés à la question, suivis par les éléments de contexte. Chaque point doit être limité à une ou deux phrases.
 
     ### Question :
     "{question}"
 
-    ### Section du rapport :
+    ### Sections du rapport :
     {retrieved_sections}
 
-    **Exemple de réponse concise** :
-        1. Le niveau global de la mer a augmenté de 0,19 m entre 1901 et 2010.
-        2. Les températures mondiales ont augmenté de 1,09°C entre 1850-1900 et 2011-2020.
-        3. Les concentrations de CO2 ont atteint 410 ppm en 2019.
+    **Exemple de réponse attendue** :
+        1. Le niveau global de la mer a augmenté de 0,19 m entre 1901 et 2010, en lien direct avec la hausse des températures mondiales.
+        2. Les températures moyennes ont augmenté de 1,09°C entre 1850-1900 et 2011-2020, influençant la fréquence des événements climatiques extrêmes.
+        3. Les concentrations de CO2 dans l'atmosphère ont atteint 410 ppm en 2019, une donnée clé pour comprendre l'accélération du réchauffement climatique.
 
-
-    **Remarque** : Respecter strictement ces consignes et ne présenter que les faits sous forme de liste numérotée.
+    **Remarque** : Respecter strictement les consignes et ne présenter que des faits sous forme de liste numérotée. Citer toutes les données chiffrées ou textuelles de manière exacte pour assurer la rigueur de la réponse.
     """
     prompt = PromptTemplate(template=prompt_template_resume, input_variables=[
                             "question", "retrieved_sections"])
@@ -111,6 +113,8 @@ def creer_llm_resume(model_name="llama3.2:3b-instruct-fp16"):
 
     # Use pipe to create a chain where prompt output feeds into the LLM
     return llm_chain
+
+
 
 
 def creer_prompt_reponses():

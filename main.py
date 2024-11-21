@@ -1,31 +1,14 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Script principal pour le traitement d'un article de presse et d'un rapport du GIEC.
+Script principal pour le traitement d' articles de presse et de rapports du GIEC.
 """
 
 import os
-
-from Evaluation_API import process_evaluation_api
-from Creation_code_HTML import generate_html_from_json
-from filtrer_extraits import identifier_extraits_sur_giec
-from filtrer_extraits_api import identifier_extraits_sur_giec_api
-from metrics import process_evaluation
-from pdf_processing import process_pdf_to_index
-from questions import question_generation_process
-from questions_api import question_generation_process_api
-from reponse import process_reponses
-from Reponse_API import rag_process_api
-from Resume_API import process_resume_api
-from resume_sources import process_resume
-from txt_manipulation import pretraiter_article
-from Parsing_exactitude_ton_biais import parsing_all_metrics
-from Structure_JSON import structurer_json
-from selection_rapport import find_report_by_title
-# from topic_classifier import glossaire_topics
-
+import argparse
 
 def clean_press_articles():
+    from txt_manipulation import pretraiter_article
     """
     Première Partie : Nettoyage de plusieurs articles de presse.
     """
@@ -45,6 +28,7 @@ def clean_press_articles():
 
 
 def process_ipcc_reports():
+    from pdf_processing import process_pdf_to_index
     """
     Seconde Partie : Nettoyage et indexation de plusieurs rapports IPCC.
     """
@@ -61,27 +45,20 @@ def process_ipcc_reports():
     # Itérer sur chaque fichier de rapport
     for fichier in fichiers_rapports:
         chemin_rapport_pdf = os.path.join(chemin_rapports_pdf, fichier)
-        chemin_rapport_indexed = os.path.join(chemin_output_indexed, fichier.replace('.pdf', '_indexed.json'))
-
-        
+        chemin_rapport_indexed = os.path.join(chemin_output_indexed, fichier.replace('.pdf', '.json'))
 
         process_pdf_to_index(chemin_rapport_pdf, chemin_rapport_indexed)
 
-# def identify_ipcc_mentions():
-#     """
-#     Troisième Partie : Identification des mentions directes/indirectes au GIEC.
-#     """
-#     chemin_cleaned_article = '_ _ C_est plus confortable de se dire que ce n_est pas si grave __cleaned_cleaned.txt'
-#     chemin_resultats_csv = '/Users/mateodib/Desktop/Environmental_News_Checker-Mateo/mentions_extraites.csv'
-#     chemin_glossaire = 'translated_glossary_with_definitions.csv'
-#     glossaire_topics(chemin_glossaire, chemin_cleaned_article,
-#                      chemin_resultats_csv)
-
 
 def extract_relevant_ipcc_references():
+    
     """
-    Quatrième Partie : Identification des extraits relatifs au GIEC.
+    Troisième Partie : Identification des extraits relatifs au GIEC.
     """
+    
+    from filtrer_extraits import identifier_extraits_sur_giec
+    from filtrer_extraits_api import identifier_extraits_sur_giec_api
+    
     chemin_articles_nettoyes = 'Data/presse/articles_cleaned/'
     chemin_output_chunked = 'Data/presse/articles_chunked/'
     
@@ -107,8 +84,11 @@ def extract_relevant_ipcc_references():
 
 def generate_questions():
     """
-    Cinquième Partie : Génération de questions pour plusieurs fichiers.
+    Quatrième Partie : Génération de questions pour plusieurs fichiers.
     """
+    from questions import question_generation_process
+    from questions_api import question_generation_process_api
+    
     chemin_articles_chunked = 'Data/presse/articles_chunked/'
     chemin_output_questions = 'Data/resultats/resultats_intermediaires/questions/'
     if not os.path.exists(os.path.dirname(chemin_output_questions)):
@@ -142,13 +122,22 @@ def generate_questions():
         else:
             question_generation_process_api(file_path, output_path_questions)
 
+
+
 def summarize_source_sections(LocalLLM):
+    
     """
-    Résumé des sources pour chaque question pour plusieurs fichiers.
+    Cinquième Partie: Résumé des sources pour chaque question pour plusieurs fichiers.
     """
+    from selection_rapport import find_report_by_title
+    from resume_api import process_resume_api
+    from resume import process_resume
+    from Creation_Metadata_with_GIEC import process_metadata_with_giec_reports
+    
     chemin_csv_questions = 'Data/resultats/resultats_intermediaires/questions/'
     chemin_resultats_sources = 'Data/resultats/resultats_intermediaires/sources_resumees/'
     dossier_rapport_embeddings = 'Data/IPCC/rapports_indexed/'
+    
     
     # Vérifier si le dossier de destination existe, sinon le créer
     if not os.path.exists(os.path.dirname(chemin_resultats_sources)):
@@ -166,26 +155,46 @@ def summarize_source_sections(LocalLLM):
         chemin_csv_question = os.path.join(chemin_csv_questions, fichier)
         chemin_resultats_csv = os.path.join(chemin_resultats_sources, fichier.replace('_with_questions.csv', '_resume_sections_results.csv'))
         article_title = fichier.replace('_with_questions.csv', '')
+        
+        # Create the Metadata with GIEC reports
+        process_metadata_with_giec_reports()
+        
         nom_rapport = find_report_by_title(article_title)
         
         # Remove the colon
         nom_rapport = nom_rapport.replace(":", "")
         print(f"Voici le rapport le plus proche retrouvé : {nom_rapport}")
         
-        # Ensure the path ends with .json
+        # Try to construct the path to the report JSON file
         chemin_rapport_embeddings = os.path.join(dossier_rapport_embeddings, f"{nom_rapport}.json")
-
-
-        if LocalLLM:
-            process_resume(chemin_csv_question, chemin_rapport_embeddings, chemin_resultats_csv, 5)  # Top-K = 5
-        else:
-            process_resume_api(chemin_csv_question, chemin_rapport_embeddings, chemin_resultats_csv, 5)
+    
+        # Attempt to process with the selected report, fallback if file not found
+        try:
+            if LocalLLM:
+                process_resume(chemin_csv_question, chemin_rapport_embeddings, chemin_resultats_csv, 5)  # Top-K = 5
+            else:
+                process_resume_api(chemin_csv_question, chemin_rapport_embeddings, chemin_resultats_csv, 5)
+        except FileNotFoundError:
+            print(f"File for '{nom_rapport}' not found. Using default report instead.")
+            
+            # Use default report path if the specified report file is missing
+            default_report_name = "AR6 Climate Change 2022 Mitigation of Climate Change"
+            default_rapport_embeddings = os.path.join(dossier_rapport_embeddings, f"{default_report_name}.json")
+    
+            # Retry processing with the default report
+            if LocalLLM:
+                process_resume(chemin_csv_question, default_rapport_embeddings, chemin_resultats_csv, 5)
+            else:
+                process_resume_api(chemin_csv_question, default_rapport_embeddings, chemin_resultats_csv, 5)
 
 
 def generate_rag_responses(LocalLLM):
     """
     Sixième Partie : Génération de réponses (RAG) pour plusieurs fichiers.
     """
+    from reponse import process_reponses
+    from reponse_api import process_reponses_api
+    
     chemin_sources_resumees = 'Data/resultats/resultats_intermediaires/sources_resumees/'
     chemin_output_reponses = 'Data/resultats/resultats_intermediaires/reponses/'
 
@@ -217,13 +226,17 @@ def generate_rag_responses(LocalLLM):
         if LocalLLM:
             process_reponses(chemin_questions_csv, chemin_resultats_csv)
         else:
-            rag_process_api(chemin_questions_csv, chemin_resultats_csv)
+            process_reponses_api(chemin_questions_csv, chemin_resultats_csv)
 
 
 def evaluate_generated_responses(LocalLLM):
     """
     Septième Partie : Évaluation des réponses pour plusieurs fichiers.
     """
+    
+    from metrics import process_evaluation
+    from metrics_api import process_evaluation_api
+    
     chemin_reponses = 'Data/resultats/resultats_intermediaires/reponses/'
     chemin_output_evaluation = 'Data/resultats/resultats_intermediaires/evaluation/'
     chemin_questions_csv = 'Data/resultats/resultats_intermediaires/questions/'
@@ -246,8 +259,12 @@ def evaluate_generated_responses(LocalLLM):
 
 def parse_evaluation_results():
     """
-    Parsing des résultats d'évaluation.
+    Huitième Partie: Parsing des résultats d'évaluation.
     """
+    
+    from Parsing_exactitude_ton_biais import parsing_all_metrics
+    
+    
     input_directory = 'Data/resultats/resultats_intermediaires/evaluation/'
     output_directory = 'Data/resultats/resultats_finaux/resultats_csv/'
     os.makedirs(output_directory, exist_ok=True)
@@ -258,6 +275,9 @@ def results_to_json():
     """
     Neuvième Partie : Conversion des résultats en JSON.
     """
+
+    from Structure_JSON import structurer_json
+    
     evaluation_dir = 'Data/resultats/resultats_finaux/resultats_csv/'
     article_dir = 'Data/presse/articles_chunked/'
     output_dir = 'Data/resultats/resultats_finaux/resultats_json/'
@@ -268,9 +288,16 @@ def results_to_json():
 
 
 def html_visualisation_creation():
-    json_dir = "/Users/mateodib/Desktop/Environmental_News_Checker-2/Data/resultats/resultats_intermediaires/articles_json/"
-    output_html = "/Users/mateodib/Desktop/Environmental_News_Checker-2/Visualisation_results.html"
-    articles_data_dir = "/Users/mateodib/Desktop/Environmental_News_Checker-Mateo/articles_data/"
+    """
+    Dixième Partie: Création du html pour la visualisation des résultats.
+    """
+    
+    from Creation_code_HTML import generate_html_from_json
+    
+    
+    json_dir = "Data/resultats/resultats_intermediaires/articles_json/"
+    output_html = "Visualisation_results.html"
+    articles_data_dir = "articles_data/"
     generate_html_from_json(json_dir, output_html, articles_data_dir)
 
 def run_full_processing_pipeline(LocalLLM):
@@ -289,41 +316,41 @@ def run_full_processing_pipeline(LocalLLM):
     html_visualisation_creation()
 
 
+
+def parse_arguments():
+    parser = argparse.ArgumentParser(description="Script principal pour le traitement d'articles de presse et de rapports du GIEC.")
+    parser.add_argument("--local-llm", type=str, default="yes", help="Indique si le modËle doit tourner en local ('yes' ou 'no').")
+    parser.add_argument("--task", type=int, default=11, help="Indique quelle partie du script exÈcuter (1 ‡ 11).")
+    return parser.parse_args()
+
+
 if __name__ == "__main__":
-    # Demander à l'utilisateur s'il veut utiliser un LLM local
-    use_local_llm = input("Souhaitez-vous utiliser un LLM local ? (y/n) : ").strip().lower()
-    LocalLLM = use_local_llm == 'y'
+    args = parse_arguments()
+    LocalLLM = args.local_llm.lower() == "yes"
+    choice = args.task
 
-    print("Choose an option:")
-    print("1. Clean press article")
-    print("2. Process IPCC report")
-    print("3. Identify IPCC mentions")
-    print("4. Extract relevant IPCC references")
-    print("5. Generate questions for each chunk")
-    print("6. Summarize source sections")
-    print("7. Generate RAG responses for questions")
-    print("8. Evaluate generated responses")
-    print("9. Run full processing pipeline")
-    choice = input("Enter your choice: ")
-
-    match choice:
+    match str(choice):
         case "1":
             clean_press_articles()
         case "2":
             process_ipcc_reports()
-        # case "3":
-            # identify_ipcc_mentions()
-        case "4":
+        case "3":
             extract_relevant_ipcc_references()
-        case "5":
+        case "4":
             generate_questions()
-        case "6":
+        case "5":
             summarize_source_sections(LocalLLM)
-        case "7":
+        case "6":
             generate_rag_responses(LocalLLM)
-        case "8":
+        case "7":
             evaluate_generated_responses(LocalLLM)
+        case "8":
+            parse_evaluation_results()
         case "9":
+            results_to_json()
+        case "10":
+            html_visualisation_creation()
+        case "11":
             run_full_processing_pipeline(LocalLLM)
         case _:
             print("Invalid choice. Please choose a valid option.")
